@@ -4,12 +4,12 @@
 
 ```bash
 # Development
-yarn run build:watch
-yarn start
+yarn run dev
 
-# Build
+# Build and Run
 yarn run prebuild
 yarn run build
+yarn start
 
 # Clean Build Output
 yarn run clean
