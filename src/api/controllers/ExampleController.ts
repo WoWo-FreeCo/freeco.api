@@ -4,7 +4,7 @@ import ExampleService from '../services/ExampleService';
 class ExampleController {
   async example(_req: Request, res: Response, next: NextFunction) {
     try {
-      await ExampleService.createUserExample();
+      await ExampleService.example();
       res.status(200).send({
         message: 'Example Message (string)',
         data: 'Example Data (json object)',

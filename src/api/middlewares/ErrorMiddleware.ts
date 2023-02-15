@@ -32,6 +32,6 @@ export class ErrorMiddleware {
     }
 
     res.status(httpStatus.INTERNAL_SERVER_ERROR);
-    res.send(response);
+    res.json(response);
   }
 }
