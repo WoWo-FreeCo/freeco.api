@@ -15,6 +15,35 @@ yarn start
 yarn run clean
 ```
 
+## Prisma (MySQL ORN)
+
+This project use Prisma (ORM library) to
+
+### Migration
+
+Prepare Prisma CLI
+
+```bash
+yarn add prisma --dev
+```
+
+Migrate
+
+```bash
+# In Development Environment
+# To run this command to create a new migration, Prisma Migrate
+# uses the shadow database to Detect schema drift and Generate
+# new migrations.
+# In order to create and delete the shadow database when using
+# development commands such as migrate dev and migrate reset,
+# Prisma Migrate currently requires that the database user def-
+# ined in your datasource has permission to create databases.
+prisma migration dev
+
+# In Production Environment
+prisma migration deploy
+```
+
 ## Git Commit
 
 Use this command to commit in order to follow the commit message style
