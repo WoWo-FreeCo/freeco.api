@@ -1,6 +1,7 @@
 import { createServer } from './server';
 import { Server } from 'net';
 import prisma from './database/client/prisma';
+import config from './config';
 
 async function run(): Promise<Server> {
   const app = createServer();
@@ -14,8 +15,9 @@ async function run(): Promise<Server> {
     process.exit(1);
   }
 
-  return app.listen(3000, () => {
-    console.log('App is listening on 3000 port...');
+  const port = config.API_PORT;
+  return app.listen(port, () => {
+    console.log(`App is listening on ${port} port...`);
   });
 }
 

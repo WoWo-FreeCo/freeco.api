@@ -2,5 +2,6 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 export default {
-  env: process.env.NODE_ENV,
+  ENVIRONMENT: process.env.NODE_ENV,
+  API_PORT: process.env.API_PORT,
 };
