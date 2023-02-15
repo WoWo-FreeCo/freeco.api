@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import UserService from '../services/UserService';
 import { object, ObjectSchema, string, ValidationError } from 'yup';
 import httpStatus from 'http-status';
+import bcrypt from 'bcrypt';
 
 interface CreateUserBody {
   email: string;
@@ -51,7 +52,7 @@ class UserController {
   }
 
   async createUser(req: Request, res: Response, next: NextFunction) {
-    let createUserInput;
+    let createUserInput: CreateUserBody;
     try {
       // Note: check request body is valid
       createUserInput = await createUserSchema.validate(req.body);
@@ -69,9 +70,13 @@ class UserController {
         return;
       }
 
+      // Note: auto-gen a salt and hash password
+      const hashedPassword = await bcrypt.hash(createUserInput.password, 10);
+
       // Note: create user
       await UserService.createUser({
         ...createUserInput,
+        password: hashedPassword,
         addresses: UserController.combineAddresses({ ...createUserInput }),
       });
       res.status(httpStatus.OK).send({
