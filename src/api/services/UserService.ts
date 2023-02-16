@@ -1,16 +1,6 @@
 import prisma from '../../database/client/prisma';
 import { User, UserActivation } from '@prisma/client';
 
-interface IUserService {
-  getUserByEmail(data: { email: string }): Promise<User | null>;
-  getUserById(data: { id: string }): Promise<User | null>;
-
-  getUserProfileById(data: {
-    id: string;
-  }): Promise<(User & { activation: UserActivation | null }) | null>;
-  createUser(data: CreateUserInput): Promise<User>;
-}
-
 interface CreateUserInput {
   email: string;
   password: string;
@@ -21,6 +11,23 @@ interface CreateUserInput {
   addressOne: string;
   addressTwo?: string;
   addressThree?: string;
+}
+
+interface ActivateUserActivityInput {
+  userId: string;
+  kind: 'YouTubeChannel' | 'FacebookGroup' | 'VIP' | 'SVIP';
+}
+
+interface IUserService {
+  getUserByEmail(data: { email: string }): Promise<User | null>;
+  getUserByCellphone(data: { cellphone: string }): Promise<User | null>;
+  getUserByTaxIDNumber(data: { taxIDNumber: string }): Promise<User | null>;
+  getUserById(data: { id: string }): Promise<User | null>;
+  getUserProfileById(data: {
+    id: string;
+  }): Promise<(User & { activation: UserActivation | null }) | null>;
+  createUser(data: CreateUserInput): Promise<User>;
+  activateUserActivity(data: ActivateUserActivityInput): Promise<void>;
 }
 
 class UserService implements IUserService {
@@ -46,6 +53,24 @@ class UserService implements IUserService {
     return user;
   }
 
+  async getUserByCellphone(data: { cellphone: string }): Promise<User | null> {
+    const user = await prisma.user.findFirst({
+      where: {
+        cellphone: data.cellphone,
+      },
+    });
+    return user;
+  }
+  async getUserByTaxIDNumber(data: {
+    taxIDNumber: string;
+  }): Promise<User | null> {
+    const user = await prisma.user.findFirst({
+      where: {
+        taxIDNumber: data.taxIDNumber,
+      },
+    });
+    return user;
+  }
   async getUserById(data: { id: string }): Promise<User | null> {
     const user = await prisma.user.findFirst({
       where: {
@@ -104,6 +129,33 @@ class UserService implements IUserService {
     });
 
     return user;
+  }
+  async activateUserActivity({
+    kind,
+    userId,
+  }: ActivateUserActivityInput): Promise<void> {
+    const data = {};
+    switch (kind) {
+      case 'VIP':
+        data['VIPActivated'] = true;
+        break;
+      case 'FacebookGroup':
+        data['FacebookGroupActivated'] = true;
+        break;
+      case 'YouTubeChannel':
+        data['YouTubeChannelActivated'] = true;
+        break;
+      case 'SVIP':
+        data['SVIPActivated'] = true;
+        break;
+    }
+
+    await prisma.userActivation.update({
+      where: {
+        userId,
+      },
+      data,
+    });
   }
 }
 
