@@ -1,8 +1,11 @@
-import { NextFunction, Request, Response } from 'express';
+import { CookieOptions, NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
 import { object, ObjectSchema, string, ValidationError } from 'yup';
 import bcrypt from 'bcrypt';
 import AdminUserService from '../services/AdminUserService';
+import UserService from '../services/UserService';
+import jwt from '../../utils/jwt';
+import config from 'config';
 
 interface RegisterBody {
   email: string;
@@ -13,6 +16,37 @@ const registerSchema: ObjectSchema<RegisterBody> = object({
   email: string().email().required(),
   password: string().required(),
 });
+
+interface LoginBody {
+  email: string;
+  password: string;
+}
+
+const loginSchema: ObjectSchema<LoginBody> = object({
+  email: string().email().required(),
+  password: string().required(),
+});
+
+// Note:
+// Cookie options, default access token is 1 hour and refresh token is 24 hours
+const accessTokenExpiresIn = config.has('ADMIN_ACCESS_TOKEN_EXPIRES_IN')
+  ? config.get<number>('ADMIN_ACCESS_TOKEN_EXPIRES_IN')
+  : 1;
+const refreshTokenExpiresIn = config.has('ADMIN_REFRESH_TOKEN_EXPIRES_IN')
+  ? config.get<number>('ADMIN_REFRESH_TOKEN_EXPIRES_IN')
+  : 24;
+const accessTokenCookieOptions: CookieOptions = {
+  expires: new Date(Date.now() + accessTokenExpiresIn * 60 * 1000),
+  maxAge: accessTokenExpiresIn * 60 * 1000,
+  httpOnly: true,
+  sameSite: 'lax',
+};
+const refreshTokenCookieOptions: CookieOptions = {
+  expires: new Date(Date.now() + refreshTokenExpiresIn * 60 * 1000),
+  maxAge: refreshTokenExpiresIn * 60 * 1000,
+  httpOnly: true,
+  sameSite: 'lax',
+};
 
 class AdminUserController {
   async register(
@@ -48,6 +82,65 @@ class AdminUserController {
       });
 
       res.status(httpStatus.CREATED).send();
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async login(req: Request, res: Response, next: NextFunction): Promise<void> {
+    let loginBody: LoginBody;
+    try {
+      // Note: Check request body is valid
+      loginBody = await loginSchema.validate(req.body);
+    } catch (err) {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+
+    try {
+      const user = await UserService.getUserByEmail({ ...loginBody });
+      if (!user || !(await bcrypt.compare(loginBody.password, user.password))) {
+        res.status(httpStatus.UNAUTHORIZED).send({
+          message: 'Invalid email or password.',
+        });
+        return;
+      }
+
+      // Note: Sign access token and refresh token
+      const accessToken = jwt.sign(
+        {
+          sub: {
+            id: user.id,
+          },
+        },
+        'ACCESS_TOKEN_PRIVATE_KEY',
+        {
+          expiresIn: `${accessTokenExpiresIn}m`,
+        },
+      );
+      const refreshToken = jwt.sign(
+        {
+          sub: {
+            id: user.id,
+          },
+        },
+        'REFRESH_TOKEN_PRIVATE_KEY',
+        {
+          expiresIn: `${refreshTokenExpiresIn}m`,
+        },
+      );
+
+      // Note: Send access token in cookie
+      res.cookie('access_token', accessToken, accessTokenCookieOptions);
+      res.cookie('refresh_token', refreshToken, refreshTokenCookieOptions);
+      res.cookie('logged_in', true, {
+        ...accessTokenCookieOptions,
+        httpOnly: false,
+      });
+
+      res.status(httpStatus.OK).json({
+        accessToken,
+      });
     } catch (err) {
       next(err);
     }
