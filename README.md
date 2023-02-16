@@ -38,10 +38,10 @@ Migrate
 # development commands such as migrate dev and migrate reset,
 # Prisma Migrate currently requires that the database user def-
 # ined in your datasource has permission to create databases.
-prisma migration dev
+prisma migrate dev
 
 # In Production Environment
-prisma migration deploy
+prisma migrate deploy
 ```
 
 ## Git Commit

@@ -14,10 +14,25 @@ interface CreateUserInput {
   cellphone: string;
   telephone?: string;
   defaultReward?: number;
-  addresses: { address: string; telephone?: string }[];
+  addressOne: string;
+  addressTwo?: string;
+  addressThree?: string;
 }
 
 class UserService implements IUserService {
+  static generateRecommendCode(): string {
+    let result = '';
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const numbers = '0123456789';
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+    let counter = 0;
+    while (counter < 7) {
+      result += numbers.charAt(Math.floor(Math.random() * numbers.length));
+      counter += 1;
+    }
+    return result;
+  }
   async getUserByEmail(data: { email: string }): Promise<User | null> {
     const user = await prisma.user.findFirst({
       where: {
@@ -37,6 +52,21 @@ class UserService implements IUserService {
   }
 
   async createUser(data: CreateUserInput): Promise<User> {
+    let recommendCode = UserService.generateRecommendCode();
+    let repeatedRecommendCodeUser = prisma.user.findFirst({
+      where: {
+        recommendCode,
+      },
+    });
+    while (!repeatedRecommendCodeUser) {
+      recommendCode = UserService.generateRecommendCode();
+      repeatedRecommendCodeUser = prisma.user.findFirst({
+        where: {
+          recommendCode,
+        },
+      });
+    }
+
     const user = await prisma.user.create({
       data: {
         email: data.email,
@@ -44,17 +74,14 @@ class UserService implements IUserService {
         nickname: data.nickname,
         cellphone: data.cellphone,
         telephone: data.telephone,
-        record: {
-          create: {
-            reward: data.defaultReward || 0,
-          },
-        },
-        activity: {
+        rewardCredit: data.defaultReward || 0,
+        activation: {
           create: {},
         },
-        addresses: {
-          create: data.addresses,
-        },
+        addressOne: data.addressOne,
+        addressTwo: data.addressTwo,
+        addressThree: data.addressThree,
+        recommendCode,
       },
     });
 

@@ -62,30 +62,6 @@ const refreshTokenCookieOptions: CookieOptions = {
 };
 
 class UserController {
-  static combineAddresses(data: {
-    addressOne: string;
-    addressTwo?: string;
-    addressThree?: string;
-  }) {
-    const { addressOne, addressTwo, addressThree } = data;
-    const addresses = [
-      {
-        address: addressOne,
-      },
-    ];
-    if (addressTwo) {
-      addresses.push({
-        address: addressTwo,
-      });
-    }
-    if (addressThree) {
-      addresses.push({
-        address: addressThree,
-      });
-    }
-    return addresses;
-  }
-
   async register(req: Request, res: Response, next: NextFunction) {
     let registerBody: RegisterBody;
     try {
@@ -112,7 +88,6 @@ class UserController {
       user = await UserService.createUser({
         ...registerBody,
         password: hashedPassword,
-        addresses: UserController.combineAddresses({ ...registerBody }),
       });
 
       res.status(httpStatus.CREATED).send();
