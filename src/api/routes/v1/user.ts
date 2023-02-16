@@ -10,9 +10,9 @@ userRoute.route('/login').post(UserController.login);
 userRoute.route('/refresh').get(UserController.refresh);
 userRoute
   .route('/profile')
-  .get(AuthMiddleware.authenticate, UserController.getProfile);
+  .get(AuthMiddleware.authenticate('user'), UserController.getProfile);
 
 userRoute
   .route('/activity/activate')
-  .post(AuthMiddleware.authenticate, UserActivityController.activate);
+  .post(AuthMiddleware.authenticate('user'), UserActivityController.activate);
 export default userRoute;

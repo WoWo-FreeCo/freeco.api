@@ -5,7 +5,11 @@ import Logger from '../logger';
 class JWT {
   sign(
     payload: object,
-    key: 'ACCESS_TOKEN_PRIVATE_KEY' | 'REFRESH_TOKEN_PRIVATE_KEY',
+    key:
+      | 'ACCESS_TOKEN_PRIVATE_KEY'
+      | 'REFRESH_TOKEN_PRIVATE_KEY'
+      | 'ADMIN_ACCESS_TOKEN_PRIVATE_KEY'
+      | 'ADMIN_REFRESH_TOKEN_PRIVATE_KEY',
     options: SignOptions = {},
   ) {
     const secret = Buffer.from(config.get<string>(key), 'base64').toString(
@@ -16,7 +20,11 @@ class JWT {
 
   verify<T>(
     token: string,
-    key: 'ACCESS_TOKEN_PUBLIC_KEY' | 'REFRESH_TOKEN_PUBLIC_KEY',
+    key:
+      | 'ACCESS_TOKEN_PUBLIC_KEY'
+      | 'REFRESH_TOKEN_PUBLIC_KEY'
+      | 'ADMIN_ACCESS_TOKEN_PUBLIC_KEY'
+      | 'ADMIN_REFRESH_TOKEN_PUBLIC_KEY',
   ) {
     try {
       const publicKey = Buffer.from(config.get<string>(key), 'base64').toString(

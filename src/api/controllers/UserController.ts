@@ -41,6 +41,7 @@ const loginSchema: ObjectSchema<LoginBody> = object({
 
 interface ProfileResponse {
   id: string;
+  email: string;
   nickname: string | null;
   taxIDNumber: string | null;
   cellphone: string;
@@ -224,7 +225,7 @@ class UserController {
         },
         'ACCESS_TOKEN_PRIVATE_KEY',
         {
-          expiresIn: `${accessTokenExpiresIn}m`,
+          expiresIn: `${accessTokenExpiresIn}h`,
         },
       );
 
@@ -271,6 +272,7 @@ class UserController {
 
         const profile: ProfileResponse = {
           id,
+          email: user.email,
           nickname: user.nickname || null,
           taxIDNumber: user.taxIDNumber,
           cellphone: user.cellphone,

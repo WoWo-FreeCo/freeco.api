@@ -3,9 +3,9 @@ import httpStatus from 'http-status';
 import { object, ObjectSchema, string, ValidationError } from 'yup';
 import bcrypt from 'bcrypt';
 import AdminUserService from '../services/AdminUserService';
-import UserService from '../services/UserService';
 import jwt from '../../utils/jwt';
 import config from 'config';
+import adminUserService from '../services/AdminUserService';
 
 interface RegisterBody {
   email: string;
@@ -26,6 +26,11 @@ const loginSchema: ObjectSchema<LoginBody> = object({
   email: string().email().required(),
   password: string().required(),
 });
+
+interface ProfileResponse {
+  id: string;
+  email: string;
+}
 
 // Note:
 // Cookie options, default access token is 1 hour and refresh token is 24 hours
@@ -98,7 +103,7 @@ class AdminUserController {
     }
 
     try {
-      const user = await UserService.getUserByEmail({ ...loginBody });
+      const user = await AdminUserService.getUserByEmail({ ...loginBody });
       if (!user || !(await bcrypt.compare(loginBody.password, user.password))) {
         res.status(httpStatus.UNAUTHORIZED).send({
           message: 'Invalid email or password.',
@@ -113,9 +118,9 @@ class AdminUserController {
             id: user.id,
           },
         },
-        'ACCESS_TOKEN_PRIVATE_KEY',
+        'ADMIN_ACCESS_TOKEN_PRIVATE_KEY',
         {
-          expiresIn: `${accessTokenExpiresIn}m`,
+          expiresIn: `${accessTokenExpiresIn}h`,
         },
       );
       const refreshToken = jwt.sign(
@@ -124,9 +129,9 @@ class AdminUserController {
             id: user.id,
           },
         },
-        'REFRESH_TOKEN_PRIVATE_KEY',
+        'ADMIN_REFRESH_TOKEN_PRIVATE_KEY',
         {
-          expiresIn: `${refreshTokenExpiresIn}m`,
+          expiresIn: `${refreshTokenExpiresIn}h`,
         },
       );
 
@@ -141,6 +146,100 @@ class AdminUserController {
       res.status(httpStatus.OK).json({
         accessToken,
       });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async refresh(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    const refreshToken = req.cookies.refresh_token as string;
+
+    const failMessage = 'Could not refresh token.';
+
+    // Note: Check refresh token is included
+    if (!refreshToken) {
+      res.status(httpStatus.UNAUTHORIZED).send({
+        message: failMessage,
+      });
+      return;
+    }
+
+    try {
+      // Note: Verify refresh token
+      const decoded = jwt.verify<{
+        sub: {
+          id: string;
+        };
+      }>(refreshToken, 'ADMIN_REFRESH_TOKEN_PUBLIC_KEY');
+      if (!decoded) {
+        res.status(httpStatus.UNAUTHORIZED).send({
+          message: failMessage,
+        });
+        return;
+      }
+
+      // Note: Check user exists
+      const user = await adminUserService.getUserById({ ...decoded.sub });
+      if (!user) {
+        res.status(httpStatus.UNAUTHORIZED).send({
+          message: failMessage,
+        });
+        return;
+      }
+
+      // Note: Sign new access token
+      const accessToken = jwt.sign(
+        {
+          sub: {
+            id: user.id,
+          },
+        },
+        'ADMIN_ACCESS_TOKEN_PRIVATE_KEY',
+        {
+          expiresIn: `${accessTokenExpiresIn}h`,
+        },
+      );
+
+      // Note: Send access token in cookie
+      res.cookie('access_token', accessToken, accessTokenCookieOptions);
+      res.cookie('logged_in', true, {
+        ...accessTokenCookieOptions,
+        httpOnly: false,
+      });
+
+      res.status(200).json({
+        accessToken,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getProfile(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { id } = req.userdata;
+      const user = await adminUserService.getUserById({ id });
+
+      if (user) {
+        const profile: ProfileResponse = {
+          id,
+          email: user.email,
+        };
+
+        delete profile['userId'];
+
+        res.status(httpStatus.OK).json(profile);
+      } else {
+        res.sendStatus(httpStatus.NOT_FOUND);
+      }
     } catch (err) {
       next(err);
     }

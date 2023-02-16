@@ -3,30 +3,37 @@ import httpStatus from 'http-status';
 import jwt from '../../utils/jwt';
 
 class AuthMiddleware {
-  async authenticate(req: Request, res: Response, next: NextFunction) {
-    const authorization = req.headers.authorization;
-    if (!authorization || !authorization.includes('Bearer')) {
-      res.sendStatus(httpStatus.UNAUTHORIZED);
-      return;
-    }
+  authenticate(type: 'user' | 'adminUser') {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const authorization = req.headers.authorization;
+      if (!authorization || !authorization.includes('Bearer')) {
+        res.sendStatus(httpStatus.UNAUTHORIZED);
+        return;
+      }
 
-    const token = authorization.slice(7);
-    const decoded = jwt.verify<{
-      sub: {
-        id: string;
+      const token = authorization.slice(7);
+      const decoded = jwt.verify<{
+        sub: {
+          id: string;
+        };
+      }>(
+        token,
+        type == 'user'
+          ? 'ACCESS_TOKEN_PUBLIC_KEY'
+          : 'ADMIN_ACCESS_TOKEN_PUBLIC_KEY',
+      );
+
+      if (!decoded) {
+        res.sendStatus(httpStatus.UNAUTHORIZED);
+        return;
+      }
+
+      req.userdata = {
+        id: decoded.sub.id,
       };
-    }>(token, 'ACCESS_TOKEN_PUBLIC_KEY');
 
-    if (!decoded) {
-      res.sendStatus(httpStatus.UNAUTHORIZED);
-      return;
-    }
-
-    req.userdata = {
-      id: decoded.sub.id,
+      next();
     };
-
-    next();
   }
 }
 
