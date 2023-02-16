@@ -3,6 +3,7 @@ import { User } from '@prisma/client';
 
 interface IUserService {
   getUserByEmail(data: { email: string }): Promise<User | null>;
+  getUserById(data: { id: string }): Promise<User | null>;
   createUser(data: CreateUserInput): Promise<User>;
 }
 
@@ -21,6 +22,15 @@ class UserService implements IUserService {
     const user = await prisma.user.findFirst({
       where: {
         email: data.email,
+      },
+    });
+    return user;
+  }
+
+  async getUserById(data: { id: string }): Promise<User | null> {
+    const user = await prisma.user.findFirst({
+      where: {
+        id: data.id,
       },
     });
     return user;

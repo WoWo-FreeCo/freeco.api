@@ -11,7 +11,7 @@ class JWT {
     const secret = Buffer.from(config.get<string>(key), 'base64').toString(
       'ascii',
     );
-    return jwt.sign(payload, secret, options);
+    return jwt.sign(payload, secret, { ...options, algorithm: 'RS256' });
   }
 
   verify<T>(
@@ -24,6 +24,7 @@ class JWT {
       );
       return jwt.verify(token, publicKey) as T;
     } catch (error) {
+      console.log(error);
       Logger.error(error);
       return null;
     }

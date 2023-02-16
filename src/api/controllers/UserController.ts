@@ -5,6 +5,7 @@ import httpStatus from 'http-status';
 import bcrypt from 'bcrypt';
 import jwt from '../../utils/jwt';
 import config from 'config';
+import userService from '../services/UserService';
 
 interface RegisterBody {
   email: string;
@@ -88,14 +89,14 @@ class UserController {
   async register(req: Request, res: Response, next: NextFunction) {
     let registerBody: RegisterBody;
     try {
-      // Note: check request body is valid
+      // Note: Check request body is valid
       registerBody = await registerSchema.validate(req.body);
     } catch (err) {
       res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
       return;
     }
     try {
-      // Note: check email is used
+      // Note: Check email is used
       let user = await UserService.getUserByEmail({ ...registerBody });
       if (user) {
         res.status(httpStatus.CONFLICT).send({
@@ -104,10 +105,10 @@ class UserController {
         return;
       }
 
-      // Note: auto-gen a salt and hash password
+      // Note: Auto-gen a `Salt` and hash password
       const hashedPassword = await bcrypt.hash(registerBody.password, 10);
 
-      // Note: create user
+      // Note: Create user
       user = await UserService.createUser({
         ...registerBody,
         password: hashedPassword,
@@ -123,7 +124,7 @@ class UserController {
   async login(req: Request, res: Response, next: NextFunction) {
     let loginBody: LoginBody;
     try {
-      // Note: check request body is valid
+      // Note: Check request body is valid
       loginBody = await loginSchema.validate(req.body);
     } catch (err) {
       res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
@@ -147,6 +148,9 @@ class UserController {
           },
         },
         'ACCESS_TOKEN_PRIVATE_KEY',
+        {
+          expiresIn: `${accessTokenExpiresIn}m`,
+        },
       );
       const refreshToken = jwt.sign(
         {
@@ -155,6 +159,9 @@ class UserController {
           },
         },
         'REFRESH_TOKEN_PRIVATE_KEY',
+        {
+          expiresIn: `${refreshTokenExpiresIn}m`,
+        },
       );
 
       // Note: Send access token in cookie
@@ -166,6 +173,70 @@ class UserController {
       });
 
       res.status(httpStatus.OK).json({
+        accessToken,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async refresh(req: Request, res: Response, next: NextFunction) {
+    const refreshToken = req.cookies.refresh_token as string;
+
+    const failMessage = 'Could not refresh token.';
+
+    // Note: Check refresh token is included
+    if (!refreshToken) {
+      res.status(httpStatus.UNAUTHORIZED).send({
+        message: failMessage,
+      });
+      return;
+    }
+
+    try {
+      // Note: Verify refresh token
+      const decoded = jwt.verify<{
+        sub: {
+          id: string;
+        };
+      }>(refreshToken, 'REFRESH_TOKEN_PUBLIC_KEY');
+      if (!decoded) {
+        res.status(httpStatus.UNAUTHORIZED).send({
+          message: failMessage,
+        });
+        return;
+      }
+
+      // Note: Check user exists
+      const user = await userService.getUserById({ ...decoded.sub });
+      if (!user) {
+        res.status(httpStatus.UNAUTHORIZED).send({
+          message: failMessage,
+        });
+        return;
+      }
+
+      // Note: Sign new access token
+      const accessToken = jwt.sign(
+        {
+          sub: {
+            id: user.id,
+          },
+        },
+        'ACCESS_TOKEN_PRIVATE_KEY',
+        {
+          expiresIn: accessTokenExpiresIn,
+        },
+      );
+
+      // Note: Send access token in cookie
+      res.cookie('access_token', accessToken, accessTokenCookieOptions);
+      res.cookie('logged_in', true, {
+        ...accessTokenCookieOptions,
+        httpOnly: false,
+      });
+
+      res.status(200).json({
         accessToken,
       });
     } catch (err) {
