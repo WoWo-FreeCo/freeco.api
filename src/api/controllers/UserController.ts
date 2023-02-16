@@ -39,6 +39,22 @@ const loginSchema: ObjectSchema<LoginBody> = object({
   password: string().required(),
 });
 
+interface ProfileResponse {
+  id: string;
+  nickname: string | null;
+  taxIDNumber: string | null;
+  cellphone: string;
+  telephone: string | null;
+  addressOne: string;
+  addressTwo: string | null;
+  addressThree: string | null;
+  rewardCredit: number;
+  recommendCode: string;
+  memberLevel: 'NORMAL' | 'VIP' | 'SVIP';
+  YouTubeChannelActivated: boolean;
+  FacebookGroupActivated: boolean;
+}
+
 // Note:
 // Cookie options, default access token is 12 hours and refresh token is 24 hours
 const accessTokenExpiresIn = config.has('ACCESS_TOKEN_EXPIRES_IN')
@@ -62,7 +78,11 @@ const refreshTokenCookieOptions: CookieOptions = {
 };
 
 class UserController {
-  async register(req: Request, res: Response, next: NextFunction) {
+  async register(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     let registerBody: RegisterBody;
     try {
       // Note: Check request body is valid
@@ -73,7 +93,7 @@ class UserController {
     }
     try {
       // Note: Check email is used
-      let user = await UserService.getUserByEmail({ ...registerBody });
+      const user = await UserService.getUserByEmail({ ...registerBody });
       if (user) {
         res.status(httpStatus.CONFLICT).send({
           message: 'Email is already used.',
@@ -85,7 +105,7 @@ class UserController {
       const hashedPassword = await bcrypt.hash(registerBody.password, 10);
 
       // Note: Create user
-      user = await UserService.createUser({
+      await UserService.createUser({
         ...registerBody,
         password: hashedPassword,
       });
@@ -96,7 +116,7 @@ class UserController {
     }
   }
 
-  async login(req: Request, res: Response, next: NextFunction) {
+  async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     let loginBody: LoginBody;
     try {
       // Note: Check request body is valid
@@ -155,7 +175,11 @@ class UserController {
     }
   }
 
-  async refresh(req: Request, res: Response, next: NextFunction) {
+  async refresh(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const refreshToken = req.cookies.refresh_token as string;
 
     const failMessage = 'Could not refresh token.';
@@ -214,6 +238,50 @@ class UserController {
       res.status(200).json({
         accessToken,
       });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getProfile(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { id } = req.userdata;
+      const user = await userService.getUserProfileById({ id });
+
+      if (user && user.activation) {
+        let memberLevel: ProfileResponse['memberLevel'] = 'NORMAL';
+
+        if (user.activation.SVIPActivated) {
+          memberLevel = 'SVIP';
+        } else if (user.activation.VIPActivated) {
+          memberLevel = 'VIP';
+        }
+
+        const profile: ProfileResponse = {
+          id,
+          nickname: user.nickname || null,
+          taxIDNumber: user.taxIDNumber,
+          cellphone: user.cellphone,
+          telephone: user.telephone,
+          addressOne: user.addressOne,
+          addressTwo: user.addressTwo,
+          addressThree: user.addressThree,
+          rewardCredit: user.rewardCredit,
+          recommendCode: user.recommendCode,
+          memberLevel,
+          ...user.activation,
+        };
+
+        delete profile['userId'];
+
+        res.status(httpStatus.OK).json(profile);
+      } else {
+        res.sendStatus(httpStatus.NOT_FOUND);
+      }
     } catch (err) {
       next(err);
     }
