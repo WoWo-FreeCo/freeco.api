@@ -225,7 +225,7 @@ class UserController {
         },
         'ACCESS_TOKEN_PRIVATE_KEY',
         {
-          expiresIn: accessTokenExpiresIn,
+          expiresIn: `${accessTokenExpiresIn}m`,
         },
       );
 
