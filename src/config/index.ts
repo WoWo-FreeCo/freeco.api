@@ -1,8 +1,7 @@
 import dotenv from 'dotenv';
+import config from './default';
 
+process.env['NODE_CONFIG_DIR'] = __dirname;
 dotenv.config();
-export default {
-  isDevelopment: process.env.NODE_ENV == 'development',
-  ENVIRONMENT: process.env.NODE_ENV,
-  API_PORT: process.env.API_PORT,
-};
+
+export default config;
