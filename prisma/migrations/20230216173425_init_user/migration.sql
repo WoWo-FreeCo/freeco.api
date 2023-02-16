@@ -39,8 +39,10 @@ CREATE TABLE `User` (
     `updatedAt` TIMESTAMP(0) NOT NULL,
 
     UNIQUE INDEX `User_email_key`(`email`),
+    UNIQUE INDEX `User_cellphone_key`(`cellphone`),
     UNIQUE INDEX `User_recommendCode_key`(`recommendCode`),
     INDEX `User_cellphone_idx`(`cellphone`),
+    INDEX `User_taxIDNumber_idx`(`taxIDNumber`),
     INDEX `User_email_idx`(`email`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
