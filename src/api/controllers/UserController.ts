@@ -255,9 +255,17 @@ class UserController {
       if (user && user.activation) {
         let memberLevel: ProfileResponse['memberLevel'] = 'NORMAL';
 
-        if (user.activation.SVIPActivated) {
+        if (
+          user.activation.SVIPActivated &&
+          user.activation.FacebookGroupActivated &&
+          user.activation.YouTubeChannelActivated
+        ) {
           memberLevel = 'SVIP';
-        } else if (user.activation.VIPActivated) {
+        } else if (
+          user.activation.VIPActivated &&
+          (user.activation.FacebookGroupActivated ||
+            user.activation.YouTubeChannelActivated)
+        ) {
           memberLevel = 'VIP';
         }
 
