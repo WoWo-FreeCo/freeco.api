@@ -11,7 +11,7 @@ class JWT {
       | 'ADMIN_ACCESS_TOKEN_PRIVATE_KEY'
       | 'ADMIN_REFRESH_TOKEN_PRIVATE_KEY',
     options: SignOptions = {},
-  ) {
+  ): string {
     const secret = Buffer.from(config.get<string>(key), 'base64').toString(
       'ascii',
     );
@@ -25,15 +25,16 @@ class JWT {
       | 'REFRESH_TOKEN_PUBLIC_KEY'
       | 'ADMIN_ACCESS_TOKEN_PUBLIC_KEY'
       | 'ADMIN_REFRESH_TOKEN_PUBLIC_KEY',
-  ) {
+  ): T | null {
     try {
       const publicKey = Buffer.from(config.get<string>(key), 'base64').toString(
         'ascii',
       );
       return jwt.verify(token, publicKey) as T;
     } catch (error) {
-      console.log(error);
-      Logger.error(error);
+      if (config.get<boolean>('isDevelopment')) {
+        Logger.debug('verify JWT token encountered error: ' + error);
+      }
       return null;
     }
   }
