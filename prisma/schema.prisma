@@ -88,3 +88,10 @@ model Product {
   createdAt   DateTime         @default(now()) @db.Timestamp(0)
   updatedAt   DateTime         @updatedAt @db.Timestamp(0)
 }
+
+model HomeBanner {
+  id        Int      @id @default(autoincrement())
+  img       String   @db.VarChar(255)
+  href      String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @db.Timestamp(0)
+}
