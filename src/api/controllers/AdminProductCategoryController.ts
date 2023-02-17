@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
 import { object, ObjectSchema, string, ValidationError, number } from 'yup';
-import AdminProductCategoryService from '../services/AdminProductCategoryService';
+import AdminProductCategoryService from '../services/ProductCategoryService';
 
 const idSchema = number().required();
 interface CreateBody {

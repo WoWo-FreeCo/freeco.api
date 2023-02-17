@@ -19,7 +19,7 @@ interface IAdminProductCategoryService {
   deleteProductCategory(data: { id: number }): Promise<{ id: number } | null>;
 }
 
-class AdminProductCategoryService implements IAdminProductCategoryService {
+class ProductCategoryService implements IAdminProductCategoryService {
   async createProductCategory({
     name,
   }: CreateProductCategoryInput): Promise<ProductCategory> {
@@ -71,4 +71,4 @@ class AdminProductCategoryService implements IAdminProductCategoryService {
   }
 }
 
-export default new AdminProductCategoryService();
+export default new ProductCategoryService();
