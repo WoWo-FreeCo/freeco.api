@@ -85,7 +85,12 @@ class AdminProductCategoryController {
           ...updateBody,
         });
       if (productCategory) {
-        res.status(httpStatus.OK).json({ data: productCategory });
+        res.status(httpStatus.OK).json({
+          data: {
+            id: productCategory.id,
+            name: productCategory.name,
+          },
+        });
       } else {
         res.status(httpStatus.BAD_REQUEST).json({ message: 'Id is invalid.' });
       }

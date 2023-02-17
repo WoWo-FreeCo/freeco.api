@@ -290,7 +290,7 @@ class UserController {
 
         delete profile['userId'];
 
-        res.status(httpStatus.OK).json({ data: { profile } });
+        res.status(httpStatus.OK).json({ data: profile });
       } else {
         res.sendStatus(httpStatus.NOT_FOUND);
       }
