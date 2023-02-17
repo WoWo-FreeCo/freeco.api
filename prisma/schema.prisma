@@ -61,3 +61,24 @@ model AdminUser {
 
   @@index([email])
 }
+
+model ProductCategory {
+  id        Int       @id @default(autoincrement())
+  name      String
+  createdAt DateTime  @default(now()) @db.Timestamp(0)
+  products  Product[]
+  updatedAt DateTime  @updatedAt @db.Timestamp(0)
+}
+
+model Product {
+  id                String          @id @default(uuid()) @db.VarChar(36)
+  name              String
+  price             Int
+  memberPrice       Int
+  vipPrice          Int
+  svipPrice         Int
+  productCategory   ProductCategory @relation(fields: [productCategoryId], references: [id])
+  productCategoryId Int
+  createdAt         DateTime        @default(now()) @db.Timestamp(0)
+  updatedAt         DateTime        @updatedAt @db.Timestamp(0)
+}
