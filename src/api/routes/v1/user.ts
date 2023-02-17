@@ -5,14 +5,18 @@ import UserActivityController from '../../controllers/UserActivityController';
 
 const userRoute: Router = Router();
 
-userRoute.route('/register').post(UserController.register);
-userRoute.route('/login').post(UserController.login);
-userRoute.route('/refresh').get(UserController.refresh);
-userRoute
-  .route('/profile')
-  .get(AuthMiddleware.authenticate('user'), UserController.getProfile);
+userRoute.post('/register', UserController.register);
+userRoute.post('/login', UserController.login);
+userRoute.get('/refresh', UserController.refresh);
+userRoute.get(
+  '/profile',
+  AuthMiddleware.authenticate('user'),
+  UserController.getProfile,
+);
 
-userRoute
-  .route('/activity/activate')
-  .post(AuthMiddleware.authenticate('user'), UserActivityController.activate);
+userRoute.post(
+  '/activity/activate',
+  AuthMiddleware.authenticate('user'),
+  UserActivityController.activate,
+);
 export default userRoute;
