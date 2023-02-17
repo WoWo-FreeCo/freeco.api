@@ -33,7 +33,7 @@ class JWT {
       return jwt.verify(token, publicKey) as T;
     } catch (error) {
       if (config.get<boolean>('isDevelopment')) {
-        Logger.debug('verify JWT token encountered error: ' + error);
+        Logger.debug('verify JWT token encountered ' + error);
       }
       return null;
     }

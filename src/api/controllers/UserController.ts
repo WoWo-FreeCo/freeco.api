@@ -169,7 +169,9 @@ class UserController {
       });
 
       res.status(httpStatus.OK).json({
-        accessToken,
+        data: {
+          accessToken,
+        },
       });
     } catch (err) {
       next(err);
@@ -237,7 +239,7 @@ class UserController {
       });
 
       res.status(200).json({
-        accessToken,
+        data: { accessToken },
       });
     } catch (err) {
       next(err);
@@ -288,7 +290,7 @@ class UserController {
 
         delete profile['userId'];
 
-        res.status(httpStatus.OK).json(profile);
+        res.status(httpStatus.OK).json({ data: profile });
       } else {
         res.sendStatus(httpStatus.NOT_FOUND);
       }

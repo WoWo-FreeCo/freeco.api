@@ -15,6 +15,18 @@ yarn start
 yarn run clean
 ```
 
+## Prepare MySQL for development (docker required)
+
+```bash
+docker run --name wowo-mysql \
+    -p 33060:3306 \
+    -e MYSQL_ROOT_PASSWORD=myrootsecretpassword \
+    -e MYSQL_USER=user \
+    -e MYSQL_PASSWORD=mysecretpassword \
+    -e MYSQL_DATABASE=wowo \
+    -d mysql:8.0.32
+```
+
 ## Prisma (MySQL ORN)
 
 This project use Prisma (ORM library) to
@@ -31,13 +43,13 @@ Migrate
 
 ```bash
 # In Development Environment
-# To run this command to create a new migration, Prisma Migrate
+# (To run this command to create a new migration, Prisma Migrate
 # uses the shadow database to Detect schema drift and Generate
 # new migrations.
 # In order to create and delete the shadow database when using
 # development commands such as migrate dev and migrate reset,
 # Prisma Migrate currently requires that the database user def-
-# ined in your datasource has permission to create databases.
+# ined in your datasource has permission to create databases.)
 prisma migrate dev
 
 # In Production Environment
