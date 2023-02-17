@@ -16,17 +16,14 @@ adminUserRouter
   );
 
 const adminProductCategoryRouter: Router = Router();
-adminProductCategoryRouter
-  .route('')
-  .post(AdminProductCategoryController.create)
-  .get(AdminProductCategoryController.getAll);
+adminProductCategoryRouter.post('', AdminProductCategoryController.create);
 adminProductCategoryRouter
   .route('/:id')
   .put(AdminProductCategoryController.update)
   .delete(AdminProductCategoryController.delete);
 
 const adminProductRouter: Router = Router();
-adminProductRouter.route('/').post(AdminProductController.create);
+adminProductRouter.post('/', AdminProductController.create);
 adminProductRouter
   .route('/:id')
   .put(AdminProductController.update)

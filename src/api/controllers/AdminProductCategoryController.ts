@@ -25,7 +25,7 @@ interface ProductCategory {
 }
 
 class AdminProductCategoryController {
-  async create(req: Request, res: Response, next: NextFunction) {
+  async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     let createBody: CreateBody;
     try {
       // Note: Check request body is valid
@@ -50,22 +50,7 @@ class AdminProductCategoryController {
     }
   }
 
-  async getAll(_req: Request, res: Response, next: NextFunction) {
-    try {
-      const productCategories =
-        await AdminProductCategoryService.gatAllProductCategory();
-      const responseData: ProductCategory[] = productCategories.map(
-        (productCategory) => ({
-          id: productCategory.id,
-          name: productCategory.name,
-        }),
-      );
-      res.status(httpStatus.OK).json({ data: responseData });
-    } catch (err) {
-      next(err);
-    }
-  }
-  async update(req: Request, res: Response, next: NextFunction) {
+  async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     let id: number;
     let updateBody: UpdateBody;
     try {
@@ -98,7 +83,7 @@ class AdminProductCategoryController {
       next(err);
     }
   }
-  async delete(req: Request, res: Response, next: NextFunction) {
+  async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     let id: number;
     try {
       // Note: Check params is valid
