@@ -8,7 +8,7 @@ interface UpdateProductCategoryInput {
   id: number;
   name: string;
 }
-interface IAdminProductCategoryService {
+interface IProductCategoryService {
   createProductCategory(
     data: CreateProductCategoryInput,
   ): Promise<ProductCategory>;
@@ -19,7 +19,7 @@ interface IAdminProductCategoryService {
   deleteProductCategory(data: { id: number }): Promise<{ id: number } | null>;
 }
 
-class ProductCategoryService implements IAdminProductCategoryService {
+class ProductCategoryService implements IProductCategoryService {
   async createProductCategory({
     name,
   }: CreateProductCategoryInput): Promise<ProductCategory> {

@@ -28,7 +28,7 @@ interface UpdateProductInput {
   svipPrice: number;
   attribute?: ProductAttribute;
 }
-interface IAdminProductService {
+interface IProductService {
   createProduct(data: CreateProductInput): Promise<Product | null>;
   getProductById(data: { id: number }): Promise<Product | null>;
   getProducts(data: GetProductsInput): Promise<Product[]>;
@@ -36,7 +36,7 @@ interface IAdminProductService {
   deleteProduct(data: { id: number }): Promise<{ id: number } | null>;
 }
 
-class ProductService implements IAdminProductService {
+class ProductService implements IProductService {
   async createProduct(data: CreateProductInput): Promise<Product | null> {
     try {
       const product = await prisma.product.create({

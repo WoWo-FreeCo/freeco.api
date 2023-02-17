@@ -3,6 +3,7 @@ import AdminUserController from '../../controllers/AdminUserController';
 import AuthMiddleware from '../../middlewares/AuthMiddleware';
 import AdminProductCategoryController from '../../controllers/AdminProductCategoryController';
 import AdminProductController from '../../controllers/AdminProductController';
+import AdminHomeBannerController from '../../controllers/AdminHomeBannerController';
 
 const adminUserRouter: Router = Router();
 adminUserRouter
@@ -29,6 +30,13 @@ adminProductRouter
   .put(AdminProductController.update)
   .delete(AdminProductController.delete);
 
+const adminHomeBannerRouter: Router = Router();
+adminHomeBannerRouter.post('/', AdminHomeBannerController.create);
+adminHomeBannerRouter
+  .route('/:id')
+  .put(AdminHomeBannerController.update)
+  .delete(AdminHomeBannerController.delete);
+
 const adminRoute: Router = Router();
 adminRoute
   .use('/user', adminUserRouter)
@@ -37,10 +45,11 @@ adminRoute
     AuthMiddleware.authenticate('adminUser'),
     adminProductCategoryRouter,
   )
+  .use('/product', AuthMiddleware.authenticate('adminUser'), adminProductRouter)
   .use(
-    '/product',
+    '/home-banner',
     AuthMiddleware.authenticate('adminUser'),
-    adminProductRouter,
+    adminHomeBannerRouter,
   );
 
 export default adminRoute;

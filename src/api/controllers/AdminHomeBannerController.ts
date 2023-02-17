@@ -1,30 +1,36 @@
 import { NextFunction, Request, Response } from 'express';
+import { number, object, ObjectSchema, string, ValidationError } from 'yup';
+import HomeBannerService from '../services/HomeBannerService';
 import httpStatus from 'http-status';
-import { object, ObjectSchema, string, ValidationError, number } from 'yup';
-import ProductCategoryService from '../services/ProductCategoryService';
 
 const idSchema = number().required();
 interface CreateBody {
-  name: string;
+  img: string;
+  href: string;
 }
 
 const createSchema: ObjectSchema<CreateBody> = object({
-  name: string().required(),
+  img: string().required(),
+  href: string().required(),
 });
 
 interface UpdateBody {
-  name: string;
+  img: string;
+  href: string;
+}
+
+interface HomeBanner {
+  id: number;
+  img: string;
+  href: string;
 }
 
 const updateSchema: ObjectSchema<UpdateBody> = object({
-  name: string().required(),
+  img: string().required(),
+  href: string().required(),
 });
-interface ProductCategory {
-  id: number;
-  name: string;
-}
 
-class AdminProductCategoryController {
+class AdminHomeBannerController {
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     let createBody: CreateBody;
     try {
@@ -36,20 +42,19 @@ class AdminProductCategoryController {
     }
 
     try {
-      const productCategory =
-        await ProductCategoryService.createProductCategory({
-          ...createBody,
-        });
-      const responseData: ProductCategory = {
-        id: productCategory.id,
-        name: productCategory.name,
+      const homeBanner = await HomeBannerService.createHomeBanner({
+        ...createBody,
+      });
+      const responseData: HomeBanner = {
+        id: homeBanner.id,
+        img: homeBanner.img,
+        href: homeBanner.href,
       };
       res.status(httpStatus.CREATED).json({ data: responseData });
     } catch (err) {
       next(err);
     }
   }
-
   async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     let id: number;
     let updateBody: UpdateBody;
@@ -64,16 +69,16 @@ class AdminProductCategoryController {
     }
 
     try {
-      const productCategory =
-        await ProductCategoryService.updateProductCategory({
-          id,
-          ...updateBody,
-        });
-      if (productCategory) {
+      const homeBanner = await HomeBannerService.updateHomeBanner({
+        id,
+        ...updateBody,
+      });
+      if (homeBanner) {
         res.status(httpStatus.OK).json({
           data: {
-            id: productCategory.id,
-            name: productCategory.name,
+            id: homeBanner.id,
+            img: homeBanner.img,
+            href: homeBanner.href,
           },
         });
       } else {
@@ -94,7 +99,7 @@ class AdminProductCategoryController {
     }
 
     try {
-      const result = await ProductCategoryService.deleteProductCategory({
+      const result = await HomeBannerService.deleteHomeBanner({
         id,
       });
       if (result) {
@@ -108,4 +113,4 @@ class AdminProductCategoryController {
   }
 }
 
-export default new AdminProductCategoryController();
+export default new AdminHomeBannerController();
