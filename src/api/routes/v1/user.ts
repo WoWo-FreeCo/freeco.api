@@ -23,5 +23,10 @@ userRoute
     '/activity/daily-check/:index',
     AuthMiddleware.authenticate('user'),
     UserActivityController.dailyCheck,
+  )
+  .get(
+    '/activity/daily-check/record',
+    AuthMiddleware.authenticate('user'),
+    UserActivityController.getDailyCheckRecord,
   );
 export default userRoute;
