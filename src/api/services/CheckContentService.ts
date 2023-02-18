@@ -1,6 +1,10 @@
 import prisma from '../../database/client/prisma';
 import { CheckContentInSequence } from '@prisma/client';
 
+interface GetCheckContentInSequenceByIndex {
+  index: number;
+}
+
 interface UpdateCheckContentInSequenceInput {
   index: number;
   video?: string | null;
@@ -9,6 +13,9 @@ interface UpdateCheckContentInSequenceInput {
 }
 interface ICheckContentService {
   getAllCheckContentInSequence(): Promise<CheckContentInSequence[]>;
+  getCheckContentInSequenceByIndex(
+    data: GetCheckContentInSequenceByIndex,
+  ): Promise<CheckContentInSequence | null>;
   upsertCheckContentInSequence(
     data: UpdateCheckContentInSequenceInput,
   ): Promise<CheckContentInSequence | null>;
@@ -71,7 +78,26 @@ class CheckContentService implements ICheckContentService {
     });
     return result;
   }
-
+  async getCheckContentInSequenceByIndex(
+    data: GetCheckContentInSequenceByIndex,
+  ): Promise<CheckContentInSequence | null> {
+    try {
+      const result = await prisma.checkContentInSequence.findFirst({
+        where: {
+          index: data.index,
+        },
+      });
+      if (!result) {
+        return {
+          index: data.index,
+          ...CheckContentService.defaultCheckContentInSequence,
+        };
+      }
+      return result;
+    } catch (err) {
+      return null;
+    }
+  }
   async upsertCheckContentInSequence(
     data: UpdateCheckContentInSequenceInput,
   ): Promise<CheckContentInSequence | null> {

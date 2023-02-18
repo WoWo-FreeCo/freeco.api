@@ -1,8 +1,11 @@
 import { NextFunction, Request, Response } from 'express';
-import { object, ObjectSchema, string, ValidationError } from 'yup';
+import { number, object, ObjectSchema, string, ValidationError } from 'yup';
 import httpStatus from 'http-status';
 import UserService from '../services/UserService';
+import UserActivityService from '../services/UserActivityService';
+import CheckContentService from '../services/CheckContentService';
 
+const indexSchema = number().min(0).max(29).required();
 enum ActivateKind {
   A = 'A',
   B = 'B',
@@ -22,7 +25,11 @@ const ActivateSchema: ObjectSchema<ActivateBody> = object({
 });
 
 class UserActivityController {
-  async activate(req: Request, res: Response, _next: NextFunction) {
+  async activate(
+    req: Request,
+    res: Response,
+    _next: NextFunction,
+  ): Promise<void> {
     let activateBody: ActivateBody;
     try {
       // Note: Check request body is valid
@@ -50,7 +57,7 @@ class UserActivityController {
             cellphone: activateBody.code,
           });
           if (recommendUser && recommendUser.id !== user.id) {
-            await UserService.activateUserActivity({
+            await UserActivityService.activateUserActivity({
               userId: id,
               kind: 'VIP',
             });
@@ -62,13 +69,13 @@ class UserActivityController {
           }
           break;
         case ActivateKind.B:
-          await UserService.activateUserActivity({
+          await UserActivityService.activateUserActivity({
             userId: id,
             kind: 'FacebookGroup',
           });
           break;
         case ActivateKind.C:
-          await UserService.activateUserActivity({
+          await UserActivityService.activateUserActivity({
             userId: id,
             kind: 'YouTubeChannel',
           });
@@ -85,7 +92,7 @@ class UserActivityController {
             taxIDNumber: activateBody.code,
           });
           if (recommendUser && recommendUser.id !== user.id) {
-            await UserService.activateUserActivity({
+            await UserActivityService.activateUserActivity({
               userId: id,
               kind: 'SVIP',
             });
@@ -100,6 +107,49 @@ class UserActivityController {
       res.sendStatus(httpStatus.ACCEPTED);
     } else {
       res.sendStatus(httpStatus.NOT_FOUND);
+    }
+  }
+
+  async dailyCheck(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    let index: number;
+    try {
+      // Note: Check params is valid
+      index = await indexSchema.validate(req.params.index);
+    } catch (err) {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+
+    try {
+      const { id } = req.userdata;
+      const result = await UserActivityService.dailyCheck({ userId: id });
+      if (result) {
+        const checkContentInSequence =
+          await CheckContentService.getCheckContentInSequenceByIndex({ index });
+
+        if (!checkContentInSequence) {
+          res.sendStatus(httpStatus.INTERNAL_SERVER_ERROR);
+          return;
+        }
+
+        res.sendStatus(httpStatus.ACCEPTED);
+        await UserService.incrementUserCredit({
+          userId: id,
+          credit: checkContentInSequence.credit,
+        });
+      } else {
+        res.status(httpStatus.BAD_REQUEST).json({
+          data: {
+            message: 'User already checked in today.',
+          },
+        });
+      }
+    } catch (err) {
+      next(err);
     }
   }
 }

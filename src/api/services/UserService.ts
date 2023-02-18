@@ -13,11 +13,6 @@ interface CreateUserInput {
   addressThree?: string;
 }
 
-interface ActivateUserActivityInput {
-  userId: string;
-  kind: 'YouTubeChannel' | 'FacebookGroup' | 'VIP' | 'SVIP';
-}
-
 interface IUserService {
   getUserByEmail(data: { email: string }): Promise<User | null>;
   getUserByCellphone(data: { cellphone: string }): Promise<User | null>;
@@ -27,7 +22,7 @@ interface IUserService {
     id: string;
   }): Promise<(User & { activation: UserActivation | null }) | null>;
   createUser(data: CreateUserInput): Promise<User>;
-  activateUserActivity(data: ActivateUserActivityInput): Promise<void>;
+  incrementUserCredit(data: { credit: number }): Promise<void>;
 }
 
 class UserService implements IUserService {
@@ -130,31 +125,20 @@ class UserService implements IUserService {
 
     return user;
   }
-  async activateUserActivity({
-    kind,
-    userId,
-  }: ActivateUserActivityInput): Promise<void> {
-    const data = {};
-    switch (kind) {
-      case 'VIP':
-        data['VIPActivated'] = true;
-        break;
-      case 'FacebookGroup':
-        data['FacebookGroupActivated'] = true;
-        break;
-      case 'YouTubeChannel':
-        data['YouTubeChannelActivated'] = true;
-        break;
-      case 'SVIP':
-        data['SVIPActivated'] = true;
-        break;
-    }
 
-    await prisma.userActivation.update({
+  async incrementUserCredit(data: {
+    userId: string;
+    credit: number;
+  }): Promise<void> {
+    await prisma.user.update({
       where: {
-        userId,
+        id: data.userId,
       },
-      data,
+      data: {
+        rewardCredit: {
+          increment: data.credit,
+        },
+      },
     });
   }
 }

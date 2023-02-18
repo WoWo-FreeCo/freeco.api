@@ -3,7 +3,7 @@ import UserController from '../../controllers/UserController';
 import AuthMiddleware from '../../middlewares/AuthMiddleware';
 import UserActivityController from '../../controllers/UserActivityController';
 
-const userRoute: Router = Router();
+const userRoute: Router = Router({ mergeParams: true });
 
 userRoute
   .post('/register', UserController.register)
@@ -18,5 +18,10 @@ userRoute
     '/activity/activate',
     AuthMiddleware.authenticate('user'),
     UserActivityController.activate,
+  )
+  .post(
+    '/activity/daily-check/:index',
+    AuthMiddleware.authenticate('user'),
+    UserActivityController.dailyCheck,
   );
 export default userRoute;

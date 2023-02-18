@@ -79,7 +79,7 @@ class AdminCheckContentController {
     let updateBody: UpdateBody;
     try {
       // Note: Check params is valid
-      index = await indexSchema.validate(req.params.id);
+      index = await indexSchema.validate(req.params.index);
       // Note: Check request body is valid
       updateBody = await updateSchema.validate(req.body);
     } catch (err) {
@@ -112,7 +112,7 @@ class AdminCheckContentController {
     let index: number;
     try {
       // Note: Check params is valid
-      index = await indexSchema.validate(req.params.id);
+      index = await indexSchema.validate(req.params.index);
     } catch (err) {
       res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
       return;
