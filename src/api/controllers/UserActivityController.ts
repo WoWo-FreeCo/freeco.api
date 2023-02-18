@@ -1,8 +1,22 @@
 import { NextFunction, Request, Response } from 'express';
-import { object, ObjectSchema, string, ValidationError } from 'yup';
+import { number, object, ObjectSchema, string, ValidationError } from 'yup';
 import httpStatus from 'http-status';
 import UserService from '../services/UserService';
+import UserActivityService from '../services/UserActivityService';
+import CheckContentService from '../services/CheckContentService';
 
+const indexSchema = number().min(0).max(29).required();
+
+interface RemainderQuery {
+  remainderBy: number;
+}
+
+type GetDailyCheckRecordQuery = RemainderQuery;
+
+const GetDailyCheckRecordQuerySchema: ObjectSchema<GetDailyCheckRecordQuery> =
+  object({
+    remainderBy: number().min(1).default(30).optional(),
+  });
 enum ActivateKind {
   A = 'A',
   B = 'B',
@@ -21,8 +35,17 @@ const ActivateSchema: ObjectSchema<ActivateBody> = object({
   code: string().optional(),
 });
 
+interface DailyCheckRecord {
+  index: number;
+  createdAt: Date;
+}
+
 class UserActivityController {
-  async activate(req: Request, res: Response, _next: NextFunction) {
+  async activate(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     let activateBody: ActivateBody;
     try {
       // Note: Check request body is valid
@@ -32,74 +55,164 @@ class UserActivityController {
       return;
     }
 
-    const { id } = req.userdata;
-    const user = await UserService.getUserProfileById({ id });
-    let failMessage;
-    let recommendUser;
-    if (user) {
-      switch (activateBody.kind) {
-        case ActivateKind.A:
-          failMessage = 'VIP code is missing or invalid.';
-          if (!activateBody.code) {
-            res.status(httpStatus.BAD_REQUEST).json({
-              message: failMessage,
+    try {
+      const { id } = req.userdata;
+      const user = await UserService.getUserProfileById({ id });
+      let failMessage;
+      let recommendUser;
+      if (user) {
+        switch (activateBody.kind) {
+          case ActivateKind.A:
+            failMessage = 'VIP code is missing or invalid.';
+            if (!activateBody.code) {
+              res.status(httpStatus.BAD_REQUEST).json({
+                message: failMessage,
+              });
+              return;
+            }
+            recommendUser = await UserService.getUserByCellphone({
+              cellphone: activateBody.code,
             });
-            return;
-          }
-          recommendUser = await UserService.getUserByCellphone({
-            cellphone: activateBody.code,
-          });
-          if (recommendUser && recommendUser.id !== user.id) {
-            await UserService.activateUserActivity({
+            if (recommendUser && recommendUser.id !== user.id) {
+              await UserActivityService.activateUserActivity({
+                userId: id,
+                kind: 'VIP',
+              });
+            } else {
+              res.status(httpStatus.BAD_REQUEST).json({
+                message: failMessage,
+              });
+              return;
+            }
+            break;
+          case ActivateKind.B:
+            await UserActivityService.activateUserActivity({
               userId: id,
-              kind: 'VIP',
+              kind: 'FacebookGroup',
             });
-          } else {
-            res.status(httpStatus.BAD_REQUEST).json({
-              message: failMessage,
-            });
-            return;
-          }
-          break;
-        case ActivateKind.B:
-          await UserService.activateUserActivity({
-            userId: id,
-            kind: 'FacebookGroup',
-          });
-          break;
-        case ActivateKind.C:
-          await UserService.activateUserActivity({
-            userId: id,
-            kind: 'YouTubeChannel',
-          });
-          break;
-        case ActivateKind.D:
-          failMessage = 'SVIP code is missing or invalid.';
-          if (!activateBody.code) {
-            res.status(httpStatus.BAD_REQUEST).json({
-              message: failMessage,
-            });
-            return;
-          }
-          recommendUser = await UserService.getUserByTaxIDNumber({
-            taxIDNumber: activateBody.code,
-          });
-          if (recommendUser && recommendUser.id !== user.id) {
-            await UserService.activateUserActivity({
+            break;
+          case ActivateKind.C:
+            await UserActivityService.activateUserActivity({
               userId: id,
-              kind: 'SVIP',
+              kind: 'YouTubeChannel',
             });
-          } else {
-            res.status(httpStatus.BAD_REQUEST).json({
-              message: failMessage,
+            break;
+          case ActivateKind.D:
+            failMessage = 'SVIP code is missing or invalid.';
+            if (!activateBody.code) {
+              res.status(httpStatus.BAD_REQUEST).json({
+                message: failMessage,
+              });
+              return;
+            }
+            recommendUser = await UserService.getUserByTaxIDNumber({
+              taxIDNumber: activateBody.code,
             });
-            return;
-          }
-          break;
+            if (recommendUser && recommendUser.id !== user.id) {
+              await UserActivityService.activateUserActivity({
+                userId: id,
+                kind: 'SVIP',
+              });
+            } else {
+              res.status(httpStatus.BAD_REQUEST).json({
+                message: failMessage,
+              });
+              return;
+            }
+            break;
+        }
+        res.sendStatus(httpStatus.ACCEPTED);
+      } else {
+        res.sendStatus(httpStatus.NOT_FOUND);
       }
-      res.sendStatus(httpStatus.ACCEPTED);
-    } else {
-      res.sendStatus(httpStatus.NOT_FOUND);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async dailyCheck(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    let index: number;
+    try {
+      // Note: Check params is valid
+      index = await indexSchema.validate(req.params.index);
+    } catch (err) {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+
+    try {
+      const { id } = req.userdata;
+      const result = await UserActivityService.dailyCheck({ userId: id });
+      if (result) {
+        const checkContentInSequence =
+          await CheckContentService.getCheckContentInSequenceByIndex({ index });
+
+        if (!checkContentInSequence) {
+          res.sendStatus(httpStatus.INTERNAL_SERVER_ERROR);
+          return;
+        }
+
+        res.sendStatus(httpStatus.ACCEPTED);
+        await UserService.incrementUserCredit({
+          userId: id,
+          credit: checkContentInSequence.credit,
+        });
+      } else {
+        res.status(httpStatus.BAD_REQUEST).json({
+          data: {
+            message: 'User already checked in today.',
+          },
+        });
+      }
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getDailyCheckRecord(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    let getDailyCheckRecordQuery: GetDailyCheckRecordQuery;
+    try {
+      // Note: Check request query is valid
+      getDailyCheckRecordQuery = await GetDailyCheckRecordQuerySchema.validate(
+        req.query,
+      );
+    } catch (err) {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+
+    try {
+      const { remainderBy } = getDailyCheckRecordQuery;
+      const { id } = req.userdata;
+      const dailyCheckCount = await UserActivityService.getDailyCheckCount({
+        userId: id,
+      });
+
+      const dailyCheckRecords = await UserActivityService.getLatestDailyCheck({
+        userId: id,
+        take: dailyCheckCount % remainderBy,
+      });
+
+      const result: DailyCheckRecord[] = dailyCheckRecords.map(
+        (record, index) => ({
+          index,
+          createdAt: record.createdAt,
+        }),
+      );
+
+      res.status(httpStatus.OK).json({
+        data: result,
+      });
+    } catch (err) {
+      next(err);
     }
   }
 }

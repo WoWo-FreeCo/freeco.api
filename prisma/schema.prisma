@@ -10,13 +10,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model CheckContentInSequence {
+  index     Int     @id @db.UnsignedInt
+  video     String?
+  credit    Int
+  isMission Boolean
+}
+
 model UserDailyCheck {
-  id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @db.Timestamp(0)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  userId    String   @unique @db.VarChar(36)
+  userId    String   @db.VarChar(36)
 
-  @@index([createdAt])
+  @@id([userId, createdAt])
 }
 
 model UserActivation {

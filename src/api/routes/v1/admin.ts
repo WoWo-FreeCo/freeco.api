@@ -4,6 +4,7 @@ import AuthMiddleware from '../../middlewares/AuthMiddleware';
 import AdminProductCategoryController from '../../controllers/AdminProductCategoryController';
 import AdminProductController from '../../controllers/AdminProductController';
 import AdminHomeBannerController from '../../controllers/AdminHomeBannerController';
+import AdminCheckContentController from '../../controllers/AdminCheckContentController';
 
 const adminUserRouter: Router = Router();
 adminUserRouter
@@ -37,6 +38,13 @@ adminHomeBannerRouter
   .put(AdminHomeBannerController.update)
   .delete(AdminHomeBannerController.delete);
 
+const adminCheckContentRouter: Router = Router();
+adminCheckContentRouter.post('/sequence', AdminCheckContentController.create);
+adminCheckContentRouter
+  .route('/sequence/:index')
+  .put(AdminCheckContentController.update)
+  .delete(AdminCheckContentController.delete);
+
 const adminRoute: Router = Router();
 adminRoute
   .use('/user', adminUserRouter)
@@ -50,6 +58,11 @@ adminRoute
     '/home-banner',
     AuthMiddleware.authenticate('adminUser'),
     adminHomeBannerRouter,
+  )
+  .use(
+    '/check-content',
+    AuthMiddleware.authenticate('adminUser'),
+    adminCheckContentRouter,
   );
 
 export default adminRoute;

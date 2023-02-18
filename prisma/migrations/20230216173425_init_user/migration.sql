@@ -4,7 +4,7 @@ CREATE TABLE `UserDailyCheck` (
     `createdAt` TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
     `userId` VARCHAR(36) NOT NULL,
 
-    UNIQUE INDEX `UserDailyCheck_userId_key`(`userId`),
+    INDEX `UserDailyCheck_userId_key`(`userId`),
     INDEX `UserDailyCheck_createdAt_idx`(`createdAt`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
