@@ -4,7 +4,5 @@ import ExampleMiddleware from '../../middlewares/ExampleMiddleware';
 
 const exampleRoute: Router = Router();
 
-exampleRoute
-  .route('')
-  .get(ExampleMiddleware.example, ExampleController.example);
+exampleRoute.route('').get(ExampleMiddleware.example, ExampleController.getAll);
 export default exampleRoute;

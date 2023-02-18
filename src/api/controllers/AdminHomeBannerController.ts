@@ -19,16 +19,16 @@ interface UpdateBody {
   href: string;
 }
 
+const updateSchema: ObjectSchema<UpdateBody> = object({
+  img: string().required(),
+  href: string().required(),
+});
+
 interface HomeBanner {
   id: number;
   img: string;
   href: string;
 }
-
-const updateSchema: ObjectSchema<UpdateBody> = object({
-  img: string().required(),
-  href: string().required(),
-});
 
 class AdminHomeBannerController {
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
