@@ -13,6 +13,8 @@ interface CreateUserInput {
   addressThree?: string;
 }
 
+export type MemberLevel = 'NORMAL' | 'VIP' | 'SVIP';
+
 interface IUserService {
   getUserByEmail(data: { email: string }): Promise<User | null>;
   getUserByCellphone(data: { cellphone: string }): Promise<User | null>;
@@ -22,6 +24,7 @@ interface IUserService {
     id: string;
   }): Promise<(User & { activation: UserActivation | null }) | null>;
   createUser(data: CreateUserInput): Promise<User>;
+  getUserMemberLevel(data: { activation: UserActivation }): MemberLevel;
   incrementUserCredit(data: { credit: number }): Promise<void>;
 }
 
@@ -124,6 +127,29 @@ class UserService implements IUserService {
     });
 
     return user;
+  }
+
+  getUserMemberLevel(data: { activation: UserActivation }): MemberLevel {
+    let memberLevel: MemberLevel = 'NORMAL';
+    let count = 0;
+    if (data.activation.FacebookGroupActivated) {
+      count++;
+    }
+    if (data.activation.YouTubeChannelActivated) {
+      count++;
+    }
+    if (data.activation.IGFollowActivated) {
+      count++;
+    }
+    // Note: SVIP code completed or (綁定條件三選二）
+    if (data.activation.SVIPActivated || count >= 2) {
+      memberLevel = 'SVIP';
+      // Note: VIP code completed or (綁定條件三選一）
+    } else if (data.activation.VIPActivated || count >= 1) {
+      memberLevel = 'VIP';
+    }
+
+    return memberLevel;
   }
 
   async incrementUserCredit(data: {

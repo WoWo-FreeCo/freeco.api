@@ -18,10 +18,16 @@ const GetDailyCheckRecordQuerySchema: ObjectSchema<GetDailyCheckRecordQuery> =
     remainderBy: number().min(1).default(30).optional(),
   });
 enum ActivateKind {
+  // VIP Code submit
   A = 'A',
+  // Facebook粉絲團
   B = 'B',
+  // YouTube Channel
   C = 'C',
+  // IG 訂閱
   D = 'D',
+  // SVIP Code submit
+  E = 'E',
 }
 interface ActivateBody {
   kind: ActivateKind;
@@ -30,7 +36,13 @@ interface ActivateBody {
 
 const ActivateSchema: ObjectSchema<ActivateBody> = object({
   kind: string()
-    .oneOf([ActivateKind.A, ActivateKind.B, ActivateKind.C, ActivateKind.D])
+    .oneOf([
+      ActivateKind.A,
+      ActivateKind.B,
+      ActivateKind.C,
+      ActivateKind.D,
+      ActivateKind.E,
+    ])
     .required(),
   code: string().optional(),
 });
@@ -98,6 +110,12 @@ class UserActivityController {
             });
             break;
           case ActivateKind.D:
+            await UserActivityService.activateUserActivity({
+              userId: id,
+              kind: 'IGFollow',
+            });
+            break;
+          case ActivateKind.E:
             failMessage = 'SVIP code is missing or invalid.';
             if (!activateBody.code) {
               res.status(httpStatus.BAD_REQUEST).json({

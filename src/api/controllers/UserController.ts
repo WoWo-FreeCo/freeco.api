@@ -1,5 +1,5 @@
 import { CookieOptions, NextFunction, Request, Response } from 'express';
-import UserService from '../services/UserService';
+import UserService, { MemberLevel } from '../services/UserService';
 import { object, ObjectSchema, string, ValidationError } from 'yup';
 import httpStatus from 'http-status';
 import bcrypt from 'bcrypt';
@@ -51,7 +51,7 @@ interface ProfileResponse {
   addressThree: string | null;
   rewardCredit: number;
   recommendCode: string;
-  memberLevel: 'NORMAL' | 'VIP' | 'SVIP';
+  memberLevel: MemberLevel;
   YouTubeChannelActivated: boolean;
   FacebookGroupActivated: boolean;
 }
@@ -256,21 +256,9 @@ class UserController {
       const user = await userService.getUserProfileById({ id });
 
       if (user && user.activation) {
-        let memberLevel: ProfileResponse['memberLevel'] = 'NORMAL';
-
-        if (
-          user.activation.SVIPActivated &&
-          user.activation.FacebookGroupActivated &&
-          user.activation.YouTubeChannelActivated
-        ) {
-          memberLevel = 'SVIP';
-        } else if (
-          user.activation.VIPActivated &&
-          (user.activation.FacebookGroupActivated ||
-            user.activation.YouTubeChannelActivated)
-        ) {
-          memberLevel = 'VIP';
-        }
+        const memberLevel = userService.getUserMemberLevel({
+          activation: user.activation,
+        });
 
         const profile: ProfileResponse = {
           id,
