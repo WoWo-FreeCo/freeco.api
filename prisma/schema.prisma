@@ -28,6 +28,7 @@ model UserDailyCheck {
 model UserActivation {
   YouTubeChannelActivated Boolean @default(false)
   FacebookGroupActivated  Boolean @default(false)
+  IGFollowActivated       Boolean @default(false)
   VIPActivated            Boolean @default(false)
   SVIPActivated           Boolean @default(false)
   user                    User    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)

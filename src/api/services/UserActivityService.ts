@@ -3,7 +3,7 @@ import { UserDailyCheck } from '@prisma/client';
 
 interface ActivateUserActivityInput {
   userId: string;
-  kind: 'YouTubeChannel' | 'FacebookGroup' | 'VIP' | 'SVIP';
+  kind: 'YouTubeChannel' | 'FacebookGroup' | 'IGFollow' | 'VIP' | 'SVIP';
 }
 
 interface DailyCheckInput {
