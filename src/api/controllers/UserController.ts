@@ -93,11 +93,16 @@ class UserController {
       return;
     }
     try {
-      // Note: Check email is used
-      const user = await UserService.getUserByEmail({ ...registerBody });
-      if (user) {
+      // Note: Check email or cellphone is used
+      if (await UserService.getUserByEmail({ ...registerBody })) {
         res.status(httpStatus.CONFLICT).send({
           message: 'Email is already used.',
+        });
+        return;
+      }
+      if (await UserService.getUserByCellphone({ ...registerBody })) {
+        res.status(httpStatus.CONFLICT).send({
+          message: 'Cellphone is already used.',
         });
         return;
       }
