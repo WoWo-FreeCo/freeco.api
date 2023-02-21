@@ -6,6 +6,7 @@ import productRoute from './product';
 import productCategoryRoute from './productCategory';
 import homeBannerRoute from './homeBanner';
 import checkContentRoute from './checkContent';
+import paymentRoute from './payment';
 
 const router: Router = Router();
 
@@ -16,5 +17,6 @@ router.use('/product', productRoute);
 router.use('/product-category', productCategoryRoute);
 router.use('/home-banner', homeBannerRoute);
 router.use('/check-content', checkContentRoute);
+router.use('/payment', paymentRoute);
 
 export default router;
