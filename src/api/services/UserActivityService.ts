@@ -44,6 +44,9 @@ class UserActivityService implements IUserActivityService {
       case 'YouTubeChannel':
         data['YouTubeChannelActivated'] = true;
         break;
+      case 'IGFollow':
+        data['IGFollowActivated'] = true;
+        break;
       case 'SVIP':
         data['SVIPActivated'] = true;
         break;
