@@ -24,6 +24,7 @@ interface Product {
   skuId: string | null;
   categoryId: number | null;
   attribute: ProductAttribute;
+  images: string[];
 }
 class AdminProductController {
   async getMany(
@@ -57,6 +58,7 @@ class AdminProductController {
         attribute: product.attribute,
         skuId: product.skuId,
         categoryId: product.categoryId,
+        images: product.productImages.map((productImages) => productImages.imagePath)
       }));
       res.status(httpStatus.OK).json({ data: responseData });
     } catch (err) {
