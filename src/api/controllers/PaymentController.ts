@@ -176,8 +176,14 @@ class PaymentController {
         })),
       });
 
-      // // Note: Make a payment
+      // Note: Make a payment
+      const orderResultURL = req.query['order_result_url'] as string;
+      const clientBackURL = req.query['client_back_url'] as string;
       const paymentFormHtml = await PaymentService.payment({
+        params: {
+          orderResultURL,
+          clientBackURL,
+        },
         price,
         data: {
           products: paymentBody.products,
@@ -235,19 +241,22 @@ class PaymentController {
     next: NextFunction,
   ): Promise<void> {
     try {
-      Logger.debug(req.body);
+      if (req.body.RtnCode === '1') {
+        const o = await OrderService.getOrderByMerchantTradeNo({
+          merchantTradeNo: req.body.MerchantTradeNo,
+        });
 
-      // const o = await OrderService.getOrderByMerchantTradeNo({
-      //   merchantTradeNo: order.merchantTradeNo,
-      // });
-      //
-      // if (o && o.consignee) {
-      //   await OrderService.createOutboundOrder({
-      //     order: o,
-      //     consignee: o.consignee,
-      //     orderItems: o.orderItems,
-      //   });
-      // }
+        if (o && o.consignee) {
+          await OrderService.createOutboundOrder({
+            order: o,
+            consignee: o.consignee,
+            orderItems: o.orderItems,
+          });
+        }
+      } else {
+        Logger.error(`ECPay Error(${req.body.RtnCode}): ${req.body.RtnMsg}`);
+        Logger.error(req.body);
+      }
 
       res.status(httpStatus.OK).send('1|OK');
     } catch (err) {

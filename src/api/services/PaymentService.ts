@@ -35,6 +35,10 @@ export interface SettlementResult {
 }
 
 interface PaymentInput {
+  params?: {
+    orderResultURL?: string;
+    clientBackURL?: string;
+  };
   price: number;
   data: SettlementInput;
   paymentParams: {
@@ -75,14 +79,18 @@ class OrderService implements IOrderService {
     const base_param = {
       MerchantTradeNo, //請帶20碼uid, ex: f0a0d7e9fae1bb72bc93
       MerchantTradeDate, //ex: 2017/02/13 15:45:30
-      TotalAmount: data.price,
+      TotalAmount: data.price.toString(),
       TradeDesc: data.paymentParams.tradeDesc,
+      ReturnURL: ecpayBaseOptions.returnURL,
       ItemName: settlementResult.items.map((item) => item.name).join('#'),
-      ...ecpayBaseOptions,
+      OrderResultURL: data.params?.orderResultURL
+        ? data.params.orderResultURL
+        : ecpayBaseOptions.orderResultURL,
+      ClientBackURL: data.params?.clientBackURL
+        ? data.params.clientBackURL
+        : ecpayBaseOptions.clientBackURL,
       // ChooseSubPayment: '',
-      // OrderResultURL: 'https://www.youtube.com/',
       // NeedExtraPaidInfo: '1',
-      // ClientBackURL: 'https://www.google.com',
       // ItemURL: 'http://item.test.tw',
       // Remark: 'Hello World',
       // HoldTradeAMT: '1',
