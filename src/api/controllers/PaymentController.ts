@@ -24,18 +24,58 @@ const productSchema: ObjectSchema<Product> = object({
   amount: number().required().min(1),
 });
 
-interface Receiver {
-  name: string;
-  phone: string;
-  addr: string;
-  arrivalAt?: Date;
+interface Timeslot {
+  date: Date;
+  timeslot: string;
 }
 
-const receiverSchema: ObjectSchema<Receiver> = object({
-  name: string().required(),
-  phone: string().required(),
-  addr: string().required(),
-  arrivalAt: date().default(undefined).optional(),
+const timeslotSchema: ObjectSchema<Timeslot> = object({
+  date: date().required(),
+  timeslot: string().required(),
+});
+
+interface Consignee {
+  deliveryType: number;
+  addressDetailOne?: string;
+  addressDetailTwo?: string;
+  city?: string;
+  countryCode?: string;
+  district?: string;
+  email?: string;
+  idNo?: string;
+  idType?: '1';
+  cellphone?: string;
+  name?: string;
+  province?: string;
+  remark?: string;
+  stationCode?: string;
+  stationName?: string;
+  town?: string;
+  zipCode?: string;
+  senderRemark?: string;
+  requiredDeliveryTimeslots?: Timeslot[];
+}
+
+const consigneeSchema: ObjectSchema<Consignee> = object({
+  deliveryType: number().oneOf([1, 4]).required(),
+  addressDetailOne: string().optional(),
+  addressDetailTwo: string().optional(),
+  city: string().optional(),
+  countryCode: string().optional(),
+  district: string().optional(),
+  email: string().optional(),
+  idNo: string().optional(),
+  idType: string().oneOf(['1']).optional(),
+  cellphone: string().optional(),
+  name: string().optional(),
+  province: string().optional(),
+  remark: string().optional(),
+  stationCode: string().optional(),
+  stationName: string().optional(),
+  town: string().optional(),
+  zipCode: string().optional(),
+  senderRemark: string().optional(),
+  requiredDeliveryTimeslots: array().of(timeslotSchema).default([]).optional(),
 });
 
 interface InvoiceParams {
@@ -71,14 +111,14 @@ const settleSchema: ObjectSchema<SettlementBody> = object({
 type Settlement = SettlementResult;
 
 interface PaymentBody {
-  receiver: Receiver;
+  consignee: Consignee;
   products: Product[];
   invoiceParams: InvoiceParams;
   orderNote?: string;
 }
 
 const paymentSchema: ObjectSchema<PaymentBody> = object({
-  receiver: receiverSchema,
+  consignee: consigneeSchema,
   products: array().required().of(productSchema),
   invoiceParams: invoiceParamsSchema,
   orderNote: string().optional(),
