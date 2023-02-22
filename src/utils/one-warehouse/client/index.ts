@@ -31,6 +31,19 @@ class OneWarehouseClient {
         Authorization: `Bearer ${auth2AccessToken}`,
       },
     });
+    this._axiosClient.interceptors.response.use(
+      (response) => {
+        if (!response.data.success) {
+          throw Error(
+            `One Warehouse Client Error (${response.data.code}): ${response.data.message}`,
+          );
+        }
+        return response;
+      },
+      (error) => {
+        return Promise.reject(error);
+      },
+    );
   }
   async orderTrace(data: OrderTraceData): Promise<OrderTraceResponseData> {
     const response = await this._axiosClient.post<

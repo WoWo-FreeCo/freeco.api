@@ -123,7 +123,7 @@ class OrderService implements IOrderService {
     consignee: OrderConsignee;
     orderItems: OrderItem[];
   }): Promise<void> {
-    const response = await OneWarehouseClient.create({
+    await OneWarehouseClient.create({
       address_info: {
         consignee_address: data.consignee.addressDetailOne || undefined,
         consignee_address_two: data.consignee.addressDetailTwo || undefined,
@@ -164,7 +164,6 @@ class OrderService implements IOrderService {
       },
       timestamp: '0',
     });
-    console.log(response);
   }
 }
 
