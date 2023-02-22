@@ -2,6 +2,7 @@ import { Snowflake } from 'nodejs-snowflake';
 
 const snowflakeId = new Snowflake({
   custom_epoch: 0,
+  instance_id: 0,
 });
 
 const generateMerchantTradeNo = (): string => {

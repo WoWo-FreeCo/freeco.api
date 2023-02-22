@@ -51,6 +51,7 @@ model User {
   recommendedBy String?          @db.VarChar(36)
   activation    UserActivation?
   dailyChecks   UserDailyCheck[]
+  orders        Order[]
   createdAt     DateTime         @default(now()) @db.Timestamp(0)
   updatedAt     DateTime         @updatedAt @db.Timestamp(0)
 
@@ -67,6 +68,85 @@ model AdminUser {
   updatedAt DateTime @updatedAt @db.Timestamp(0)
 
   @@index([email])
+}
+
+enum OrderStatus {
+  // 待付款
+  WAIT_PAYMENT
+  // 待出貨
+  WAIT_DELIVER
+  // 待收貨
+  WAIT_RECEIVE
+  // 已完成
+  COMPLETED
+  // 已取消
+  CANCELLED
+  // 退貨/退款
+  REVOKED
+}
+
+enum DeliveryType {
+  // 宅配
+  HOME
+  // 超商取貨
+  STORE
+}
+
+model Order {
+  id              String          @id @db.VarChar(19)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId          String          @db.VarChar(36)
+  merchantTradeNo String          @unique @db.VarChar(20)
+  relateNumber    String?         @unique @db.VarChar(30)
+  orderStatus     OrderStatus
+  consignee       OrderConsignee?
+  orderItems      OrderItem[]
+  price           Int
+  createdAt       DateTime        @default(now()) @db.Timestamp(0)
+  updatedAt       DateTime        @updatedAt @db.Timestamp(0)
+
+  @@index([merchantTradeNo])
+  @@index([relateNumber])
+  @@index([userId, orderStatus])
+}
+
+model OrderConsignee {
+  id                        Int          @id @default(autoincrement())
+  deliveryType              DeliveryType
+  addressDetailOne          String?
+  addressDetailTwo          String?
+  city                      String?
+  countryCode               String?
+  district                  String?
+  name                      String?
+  email                     String?
+  idNo                      String?
+  idType                    String?
+  cellphone                 String?
+  province                  String?
+  remark                    String?      @db.Text
+  stationCode               String?
+  stationName               String?
+  town                      String?
+  zipCode                   String?
+  senderRemark              String?      @db.Text
+  requiredDeliveryDates     String?
+  requiredDeliveryTimeslots String?
+  codAmount                 Int
+  currencyCode              String       @db.VarChar(20)
+  order                     Order        @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  orderId                   String       @unique @db.VarChar(19)
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  name      String
+  price     Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  orderId   String  @db.VarChar(19)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  productId Int
+  quantity  Int
 }
 
 model ProductCategory {
@@ -92,6 +172,7 @@ model Product {
   attribute   ProductAttribute @default(GENERAL)
   category    ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   categoryId  Int?
+  orderItems  OrderItem[]
   createdAt   DateTime         @default(now()) @db.Timestamp(0)
   updatedAt   DateTime         @updatedAt @db.Timestamp(0)
 }
