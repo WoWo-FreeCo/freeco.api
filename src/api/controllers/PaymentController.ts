@@ -13,6 +13,7 @@ import Logger from '../../utils/logger';
 import UserService from '../services/UserService';
 import userService from '../services/UserService';
 import PaymentService, { SettlementResult } from '../services/PaymentService';
+import OrderService, { Timeslot } from '../services/OrderService';
 
 interface Product {
   id: number;
@@ -24,22 +25,16 @@ const productSchema: ObjectSchema<Product> = object({
   amount: number().required().min(1),
 });
 
-interface Timeslot {
-  date: Date;
-  timeslot: string;
-}
-
 const timeslotSchema: ObjectSchema<Timeslot> = object({
   date: date().required(),
-  timeslot: string().required(),
+  slot: string().required(),
 });
 
 interface Consignee {
-  deliveryType: number;
+  deliveryType: 'HOME' | 'STORE';
   addressDetailOne?: string;
   addressDetailTwo?: string;
   city?: string;
-  countryCode?: string;
   district?: string;
   email?: string;
   idNo?: string;
@@ -57,11 +52,10 @@ interface Consignee {
 }
 
 const consigneeSchema: ObjectSchema<Consignee> = object({
-  deliveryType: number().oneOf([1, 4]).required(),
+  deliveryType: string().oneOf(['HOME', 'STORE']).required(),
   addressDetailOne: string().optional(),
   addressDetailTwo: string().optional(),
   city: string().optional(),
-  countryCode: string().optional(),
   district: string().optional(),
   email: string().optional(),
   idNo: string().optional(),
@@ -150,12 +144,41 @@ class PaymentController {
         activation: user.activation,
       });
 
-      // Note: Make a payment
+      const settlementResult = await PaymentService.settlement(paymentBody);
+
+      if (!settlementResult) {
+        res.status(httpStatus.BAD_REQUEST).json({
+          message: 'One (or many) of product ids not exist.',
+        });
+        return;
+      }
+
+      // Note: Calculate the price of order
+      const price =
+        memberLevel === 'NORMAL'
+          ? settlementResult.total.memberPrice
+          : memberLevel === 'VIP'
+          ? settlementResult.total.vipPrice
+          : memberLevel === 'SVIP'
+          ? settlementResult.total.svipPrice
+          : settlementResult.total.price;
+
+      // Note: Create an order
+      await OrderService.createOrder({
+        userId: user.id,
+        price,
+        consignee: paymentBody.consignee,
+        items: settlementResult.items.map((item) => ({
+          productId: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.amount,
+        })),
+      });
+
+      // // Note: Make a payment
       const paymentFormHtml = await PaymentService.payment({
-        user: {
-          id: user.id,
-          memberLevel,
-        },
+        price,
         data: {
           products: paymentBody.products,
         },
@@ -213,6 +236,19 @@ class PaymentController {
   ): Promise<void> {
     try {
       Logger.debug(req.body);
+
+      // const o = await OrderService.getOrderByMerchantTradeNo({
+      //   merchantTradeNo: order.merchantTradeNo,
+      // });
+      //
+      // if (o && o.consignee) {
+      //   await OrderService.createOutboundOrder({
+      //     order: o,
+      //     consignee: o.consignee,
+      //     orderItems: o.orderItems,
+      //   });
+      // }
+
       res.status(httpStatus.OK).send('1|OK');
     } catch (err) {
       next(err);

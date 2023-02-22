@@ -5,6 +5,11 @@ const snowflakeId = new Snowflake({
   instance_id: 0,
 });
 
+const generateOrderId = (): string => {
+  const uid = snowflakeId.getUniqueID().toString();
+  return uid;
+};
+
 const generateMerchantTradeNo = (): string => {
   const uid = snowflakeId.getUniqueID().toString();
   return 'A' + uid;
@@ -16,6 +21,7 @@ const generateRelateNumber = (): string => {
 };
 
 export default {
+  generateOrderId,
   generateMerchantTradeNo,
   generateRelateNumber,
 };

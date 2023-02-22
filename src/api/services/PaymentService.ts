@@ -6,7 +6,6 @@ import moment from 'moment/moment';
 import ecpayOptions from '../../utils/ecpay/conf';
 import ecpay_payment from 'ecpay_aio_nodejs/lib/ecpay_payment';
 import ecpayBaseOptions from '../../utils/ecpay/conf/baseOptions';
-import { MemberLevel } from './UserService';
 
 interface SettlementInput {
   products: {
@@ -36,10 +35,7 @@ export interface SettlementResult {
 }
 
 interface PaymentInput {
-  user: {
-    id: string;
-    memberLevel: MemberLevel;
-  };
+  price: number;
   data: SettlementInput;
   paymentParams: {
     choosePayment: 'Credit';
@@ -68,6 +64,7 @@ interface IOrderService {
 }
 
 class OrderService implements IOrderService {
+  private readonly DEFAULT_DELIVERY_FEE: number = 60;
   async payment(data: PaymentInput): Promise<string | null> {
     const settlementResult = await this.settlement(data.data);
     if (!settlementResult) {
@@ -75,18 +72,10 @@ class OrderService implements IOrderService {
     }
     const MerchantTradeNo = snowflakeId.generateMerchantTradeNo();
     const MerchantTradeDate = moment().format('YYYY/MM/DD HH:mm:ss');
-    const totalAmount =
-      data.user.memberLevel === 'NORMAL'
-        ? settlementResult.total.memberPrice
-        : data.user.memberLevel === 'VIP'
-        ? settlementResult.total.vipPrice
-        : data.user.memberLevel === 'SVIP'
-        ? settlementResult.total.svipPrice
-        : settlementResult.total.price;
     const base_param = {
       MerchantTradeNo, //請帶20碼uid, ex: f0a0d7e9fae1bb72bc93
       MerchantTradeDate, //ex: 2017/02/13 15:45:30
-      TotalAmount: totalAmount.toString(),
+      TotalAmount: data.price,
       TradeDesc: data.paymentParams.tradeDesc,
       ItemName: settlementResult.items.map((item) => item.name).join('#'),
       ...ecpayBaseOptions,
@@ -217,7 +206,7 @@ class OrderService implements IOrderService {
     const settleResult: SettlementResult = {
       items: items,
       itemsCount: 0,
-      deliveryFee: 0,
+      deliveryFee: this.DEFAULT_DELIVERY_FEE,
       total: {
         price: 0,
         memberPrice: 0,
@@ -234,6 +223,23 @@ class OrderService implements IOrderService {
       result.total.svipPrice += item.svipPrice * item.amount;
       return result;
     }, settleResult);
+
+    if (settleResult.deliveryFee > 0) {
+      settleResult.items.push({
+        id: -1,
+        name: '運費',
+        price: settleResult.deliveryFee,
+        memberPrice: settleResult.deliveryFee,
+        vipPrice: settleResult.deliveryFee,
+        svipPrice: settleResult.deliveryFee,
+        amount: 1,
+      });
+      settleResult.itemsCount += 1;
+      settleResult.total.price += settleResult.deliveryFee;
+      settleResult.total.memberPrice += settleResult.deliveryFee;
+      settleResult.total.vipPrice += settleResult.deliveryFee;
+      settleResult.total.svipPrice += settleResult.deliveryFee;
+    }
 
     return anyProductNotExists ? null : result;
   }

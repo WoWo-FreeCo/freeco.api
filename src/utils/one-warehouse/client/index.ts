@@ -58,6 +58,7 @@ class OneWarehouseClient {
         version: data.version || this._params.version,
       },
     );
+    console.log(response);
     return response.data.data;
   }
 

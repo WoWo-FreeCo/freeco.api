@@ -41,11 +41,10 @@ export interface CreateData {
     consignee_station_name?: string;
     // Note: 收件街镇
     consignee_town?: string;
-    // Note: 寄件备注
+    // Note: 收件邮编
     consignee_zip_code?: string;
-    // Note: 收件人手机
+    // Note: 寄件备注
     sender_remark?: string;
-    // Note: 收件人手机
   };
   app_id?: string;
   // Note: 基础信息
@@ -120,7 +119,7 @@ export interface DetailData {
   version?: string;
 }
 
-enum WarehouseExpressCode {
+export enum WarehouseExpressCode {
   // Note: 711B2C
   '711B2C-OW' = '711B2C-OW',
   // Note: 711跨境
