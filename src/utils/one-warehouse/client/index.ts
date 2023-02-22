@@ -12,6 +12,7 @@ import {
   DetailData,
   OrderTraceData,
 } from './type/data';
+import config from 'config';
 
 interface OneWarehouseParams {
   url: string;
@@ -93,11 +94,15 @@ class OneWarehouseClient {
   }
 }
 
+const url = config.get<string>('ONE_WAREHOUSE_URL');
+const appId = config.get<string>('ONE_WAREHOUSE_APP_ID');
+const auth2AccessToken = config.get<string>('ONE_WAREHOUSE_ACCESS_TOKEN');
+
 export default new OneWarehouseClient(
   {
-    url: 'https://logistic-op-gw-sandbox.myshoplinestg.com',
-    appId: 'KA042',
+    url,
+    appId,
     version: '1.0.0',
   },
-  'eyJhbGciOiJIUzUxMiJ9.eyJhcHBLZXkiOiI4MzEyOGY1ZGU4MThkYjY2ZGRkNGJhODVmNGQwY2ZjZWYwZDI3ZjA5Iiwic2VsbGVySWQiOiI1NzM2MDk4MjM1NTkzNTI5NDIyIiwic3RvcmVJZCI6IjU3MzYwOTgyMzU1OTM1Mjk0MjIiLCJ2ZXJzaW9uIjoidmVyc2lvbiIsImRvbWFpbiI6IiIsInRpbWVzdGFtcCI6MTY3Mjg3OTkyOTgyMSwiaXNzIjoieXNvdWwiLCJleHAiOjE3MDQ0MTU5Mjd9.B5Li9CotDk5Zvdw5yQe1T4UAPLdlBrnUkJj_W_0g63dWTeTp8GxhMVNpLhpV6OsIgQgVDC7hxXf_mRJ-ClAuyg',
+  auth2AccessToken,
 );
