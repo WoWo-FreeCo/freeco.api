@@ -31,6 +31,7 @@ interface UpdateProductInput {
 interface IProductService {
   createProduct(data: CreateProductInput): Promise<Product | null>;
   getProductById(data: { id: number }): Promise<Product | null>;
+  getProductsByIds(data: { ids: number[] }): Promise<Product[]>;
   getProducts(data: GetProductsInput): Promise<Product[]>;
   updateProduct(data: UpdateProductInput): Promise<Product | null>;
   deleteProduct(data: { id: number }): Promise<{ id: number } | null>;
@@ -58,6 +59,18 @@ class ProductService implements IProductService {
       },
     });
   }
+
+  async getProductsByIds(data: { ids: number[] }): Promise<Product[]> {
+    const idsFilterQuery = data.ids.map((id) => ({
+      id,
+    }));
+    return prisma.product.findMany({
+      where: {
+        OR: idsFilterQuery,
+      },
+    });
+  }
+
   async getProducts({
     categoryId,
     pagination: { take, skip },
