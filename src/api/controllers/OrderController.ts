@@ -74,11 +74,18 @@ class OrderController {
     }
 
     try {
+      const { role, id: userId } = req.userdata;
       const orders = await OrderService.getOrders({
         attribute: getManyByAttributeQuery.attribute,
         pagination: {
           ...getManyByAttributeQuery,
         },
+        restrict:
+          role === 'USER'
+            ? {
+                userId,
+              }
+            : undefined,
       });
 
       const responseData: Order[] = orders.map((order) => ({
@@ -109,7 +116,16 @@ class OrderController {
     }
 
     try {
-      const orderDetail = await OrderService.getOrderDetailById({ id });
+      const { role, id: userId } = req.userdata;
+      const orderDetail = await OrderService.getOrderDetailById({
+        id,
+        restrict:
+          role === 'USER'
+            ? {
+                userId,
+              }
+            : undefined,
+      });
       if (!orderDetail) {
         res.status(httpStatus.BAD_REQUEST).json({ message: 'Id is invalid.' });
         return;

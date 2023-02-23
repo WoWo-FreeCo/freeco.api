@@ -186,7 +186,7 @@ class PaymentController {
           productId: item.id,
           name: item.name,
           price: item.price,
-          quantity: item.amount,
+          quantity: item.quantity,
         })),
       });
 

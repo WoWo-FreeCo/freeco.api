@@ -5,6 +5,7 @@ declare global {
     interface Request {
       userdata: {
         id: string;
+        role: 'USER' | 'ADMIN';
       };
     }
   }

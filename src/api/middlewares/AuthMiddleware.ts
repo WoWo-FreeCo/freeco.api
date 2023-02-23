@@ -30,6 +30,7 @@ class AuthMiddleware {
 
       req.userdata = {
         id: decoded.sub.id,
+        role: type === 'user' ? 'USER' : 'ADMIN',
       };
 
       next();

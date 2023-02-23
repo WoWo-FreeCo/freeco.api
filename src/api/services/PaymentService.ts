@@ -18,7 +18,7 @@ export interface SettlementResult {
     id: number;
     skuId: string | null;
     name: string;
-    amount: number;
+    quantity: number;
     price: number;
     memberPrice: number;
     vipPrice: number;
@@ -113,8 +113,8 @@ class OrderService implements IOrderService {
             : invoiceItem.InvoiceItemName + `|${item.name}`,
         InvoiceItemCount:
           invoiceItem.InvoiceItemCount === ''
-            ? item.amount
-            : invoiceItem.InvoiceItemCount + `|${item.amount}`,
+            ? item.quantity
+            : invoiceItem.InvoiceItemCount + `|${item.quantity}`,
         InvoiceItemWord:
           invoiceItem.InvoiceItemWord === ''
             ? `個`
@@ -187,7 +187,7 @@ class OrderService implements IOrderService {
             id: product.id,
             skuId: product.skuId,
             name: product.name,
-            amount: item.quantity,
+            quantity: item.quantity,
             price: item.quantity * product.price,
             memberPrice: item.quantity * product.memberPrice,
             vipPrice: item.quantity * product.vipPrice,
@@ -196,7 +196,7 @@ class OrderService implements IOrderService {
         } else {
           settlementItemsMap.set(product.id, {
             ...settlementItem,
-            amount: settlementItem.amount + item.quantity,
+            quantity: settlementItem.quantity + item.quantity,
             price: settlementItem.price + item.quantity * product.price,
             memberPrice:
               settlementItem.memberPrice + item.quantity * product.memberPrice,
@@ -225,11 +225,11 @@ class OrderService implements IOrderService {
     };
 
     const result = items.reduce<SettlementResult>((result, item) => {
-      result.itemsCount += item.amount;
-      result.total.price += item.price * item.amount;
-      result.total.memberPrice += item.memberPrice * item.amount;
-      result.total.vipPrice += item.vipPrice * item.amount;
-      result.total.svipPrice += item.svipPrice * item.amount;
+      result.itemsCount += item.quantity;
+      result.total.price += item.price * item.quantity;
+      result.total.memberPrice += item.memberPrice * item.quantity;
+      result.total.vipPrice += item.vipPrice * item.quantity;
+      result.total.svipPrice += item.svipPrice * item.quantity;
       return result;
     }, settleResult);
 
@@ -242,7 +242,7 @@ class OrderService implements IOrderService {
         memberPrice: settleResult.deliveryFee,
         vipPrice: settleResult.deliveryFee,
         svipPrice: settleResult.deliveryFee,
-        amount: 1,
+        quantity: 1,
       });
       settleResult.itemsCount += 1;
       settleResult.total.price += settleResult.deliveryFee;

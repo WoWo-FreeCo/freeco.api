@@ -48,9 +48,18 @@ interface GetOrdersInput {
 
 interface IOrderService {
   createOrder(data: CreateOrderInput): Promise<Order>;
-  getOrders(data: GetOrdersInput): Promise<Order[]>;
+  getOrders(
+    data: GetOrdersInput & {
+      restrict?: {
+        userId: string;
+      };
+    },
+  ): Promise<Order[]>;
   getOrderDetailById(data: {
     id: string;
+    restrict?: {
+      userId: string;
+    };
   }): Promise<
     | (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })
     | null
@@ -119,13 +128,21 @@ class OrderService implements IOrderService {
     });
   }
 
-  async getOrders({
-    attribute,
-    pagination: { take, skip },
-  }: GetOrdersInput): Promise<Order[]> {
+  async getOrders(
+    data: GetOrdersInput & {
+      restrict?: {
+        userId: string;
+      };
+    },
+  ): Promise<Order[]> {
+    const {
+      attribute,
+      pagination: { take, skip },
+    } = data;
     return prisma.order.findMany({
       where: {
         attribute,
+        userId: data.restrict?.userId,
       },
       take,
       skip,
@@ -136,6 +153,9 @@ class OrderService implements IOrderService {
   }
   async getOrderDetailById(data: {
     id: string;
+    restrict?: {
+      userId: string;
+    };
   }): Promise<
     | (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })
     | null
@@ -143,6 +163,7 @@ class OrderService implements IOrderService {
     return prisma.order.findFirst({
       where: {
         id: data.id,
+        userId: data.restrict?.userId,
       },
       include: {
         consignee: true,
