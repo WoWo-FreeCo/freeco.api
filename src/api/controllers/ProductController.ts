@@ -3,13 +3,9 @@ import { number, object, ObjectSchema, ValidationError } from 'yup';
 import httpStatus from 'http-status';
 import AdminProductService from '../services/ProductService';
 import { ProductAttribute } from '.prisma/client';
+import { Pagination } from '../../utils/helper/pagination';
 
-interface OffsetPaginationQuery {
-  take: number;
-  skip: number;
-}
-
-type GetManyByCategoryIdQuery = OffsetPaginationQuery & { categoryId?: number };
+type GetManyByCategoryIdQuery = Pagination & { categoryId?: number };
 
 const getManyByCategoryIdQuerySchema: ObjectSchema<GetManyByCategoryIdQuery> =
   object({

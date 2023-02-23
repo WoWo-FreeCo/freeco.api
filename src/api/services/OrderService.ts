@@ -4,6 +4,7 @@ import { Order, OrderConsignee, OrderItem } from '@prisma/client';
 import OneWarehouseClient from '../../utils/one-warehouse/client';
 import { WarehouseExpressCode } from '../../utils/one-warehouse/client/type/data';
 import { ProductAttribute } from '.prisma/client';
+import { Pagination } from '../../utils/helper/pagination';
 export interface Timeslot {
   date: Date;
   slot: string;
@@ -40,8 +41,14 @@ interface CreateOrderInput {
   }[];
 }
 
+interface GetOrdersInput {
+  attribute?: ProductAttribute;
+  pagination: Pagination;
+}
+
 interface IOrderService {
   createOrder(data: CreateOrderInput): Promise<Order>;
+  getOrders(data: GetOrdersInput): Promise<Order[]>;
   getOrderByMerchantTradeNo(data: {
     merchantTradeNo: string;
   }): Promise<
@@ -106,6 +113,21 @@ class OrderService implements IOrderService {
     });
   }
 
+  async getOrders({
+    attribute,
+    pagination: { take, skip },
+  }: GetOrdersInput): Promise<Order[]> {
+    return prisma.order.findMany({
+      where: {
+        attribute,
+      },
+      take,
+      skip,
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
   async getOrderByMerchantTradeNo(data: {
     merchantTradeNo: string;
   }): Promise<
