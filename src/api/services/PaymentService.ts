@@ -1,7 +1,6 @@
 import ProductService from './ProductService';
 import { Product as PrismaProduct } from '.prisma/client';
 import { Product } from '@prisma/client';
-import snowflakeId from '../../utils/snowflake-id';
 import moment from 'moment/moment';
 import ecpayOptions from '../../utils/ecpay/conf';
 import ecpay_payment from 'ecpay_aio_nodejs/lib/ecpay_payment';
@@ -10,15 +9,16 @@ import ecpayBaseOptions from '../../utils/ecpay/conf/baseOptions';
 interface SettlementInput {
   products: {
     id: number;
-    amount: number;
+    quantity: number;
   }[];
 }
 
 export interface SettlementResult {
   items: {
-    id: number;
+    productId: number | null;
+    productSkuId: string | null;
     name: string;
-    amount: number;
+    quantity: number;
     price: number;
     memberPrice: number;
     vipPrice: number;
@@ -42,10 +42,16 @@ interface PaymentInput {
   price: number;
   data: SettlementInput;
   paymentParams: {
+    // Note: 請帶20碼uid, ex: f0a0d7e9fae1bb72bc93
+    merchantTradeNo: string;
     choosePayment: 'Credit';
     tradeDesc: string;
   };
   invoiceParams: {
+    //Note: 請帶30碼uid ex: SJDFJGH24FJIL97G73653XM0VOMS4K
+    relateNumber: string;
+    // Note: 統一編號 固定 8 位長度數字
+    customerIdentifier?: string;
     customerName: string;
     customerAddr: string;
     customerPhone: string;
@@ -74,10 +80,9 @@ class OrderService implements IOrderService {
     if (!settlementResult) {
       return null;
     }
-    const MerchantTradeNo = snowflakeId.generateMerchantTradeNo();
     const MerchantTradeDate = moment().format('YYYY/MM/DD HH:mm:ss');
     const base_param = {
-      MerchantTradeNo, //請帶20碼uid, ex: f0a0d7e9fae1bb72bc93
+      MerchantTradeNo: data.paymentParams.merchantTradeNo, //請帶20碼uid, ex: f0a0d7e9fae1bb72bc93
       MerchantTradeDate, //ex: 2017/02/13 15:45:30
       TotalAmount: data.price.toString(),
       TradeDesc: data.paymentParams.tradeDesc,
@@ -100,7 +105,6 @@ class OrderService implements IOrderService {
       // CustomField3: '',
       // CustomField4: ''
     };
-    const RelateNumber = snowflakeId.generateRelateNumber();
     const InvoiceItem = settlementResult.items.reduce(
       (invoiceItem, item) => ({
         InvoiceItemName:
@@ -109,8 +113,8 @@ class OrderService implements IOrderService {
             : invoiceItem.InvoiceItemName + `|${item.name}`,
         InvoiceItemCount:
           invoiceItem.InvoiceItemCount === ''
-            ? item.amount
-            : invoiceItem.InvoiceItemCount + `|${item.amount}`,
+            ? item.quantity
+            : invoiceItem.InvoiceItemCount + `|${item.quantity}`,
         InvoiceItemWord:
           invoiceItem.InvoiceItemWord === ''
             ? `個`
@@ -134,9 +138,9 @@ class OrderService implements IOrderService {
     );
     // 若要測試開立電子發票，請將inv_params內的"所有"參數取消註解 //
     const inv_params = {
-      RelateNumber, //請帶30碼uid ex: SJDFJGH24FJIL97G73653XM0VOMS4K
+      RelateNumber: data.invoiceParams.relateNumber, //請帶30碼uid ex: SJDFJGH24FJIL97G73653XM0VOMS4K
       CustomerID: '', //會員編號
-      CustomerIdentifier: '00000000', //統一編號
+      CustomerIdentifier: data.invoiceParams.customerIdentifier,
       CustomerName: data.invoiceParams.customerName,
       CustomerAddr: data.invoiceParams.customerAddr,
       CustomerPhone: data.invoiceParams.customerPhone,
@@ -152,11 +156,6 @@ class OrderService implements IOrderService {
       DelayDay: '0',
       InvType: '07',
       ...InvoiceItem,
-      // InvoiceItemName: '測試商品1|測試商品2',
-      // InvoiceItemCount: '2|3',
-      // InvoiceItemWord: '個|包',
-      // InvoiceItemPrice: '35|10',
-      // InvoiceItemTaxType: '1|1',
     };
     const create = new ecpay_payment(ecpayOptions);
     const html = create.payment_client.aio_check_out_credit_onetime(
@@ -185,24 +184,26 @@ class OrderService implements IOrderService {
       if (product) {
         if (!settlementItem) {
           settlementItemsMap.set(product.id, {
-            id: product.id,
+            productId: product.id,
+            productSkuId: product.skuId,
             name: product.name,
-            amount: item.amount,
-            price: item.amount * product.price,
-            memberPrice: item.amount * product.memberPrice,
-            vipPrice: item.amount * product.vipPrice,
-            svipPrice: item.amount * product.svipPrice,
+            quantity: item.quantity,
+            price: item.quantity * product.price,
+            memberPrice: item.quantity * product.memberPrice,
+            vipPrice: item.quantity * product.vipPrice,
+            svipPrice: item.quantity * product.svipPrice,
           });
         } else {
           settlementItemsMap.set(product.id, {
             ...settlementItem,
-            amount: settlementItem.amount + item.amount,
-            price: settlementItem.price + item.amount * product.price,
+            quantity: settlementItem.quantity + item.quantity,
+            price: settlementItem.price + item.quantity * product.price,
             memberPrice:
-              settlementItem.memberPrice + item.amount * product.memberPrice,
-            vipPrice: settlementItem.vipPrice + item.amount * product.vipPrice,
+              settlementItem.memberPrice + item.quantity * product.memberPrice,
+            vipPrice:
+              settlementItem.vipPrice + item.quantity * product.vipPrice,
             svipPrice:
-              settlementItem.svipPrice + item.amount * product.svipPrice,
+              settlementItem.svipPrice + item.quantity * product.svipPrice,
           });
         }
       } else {
@@ -224,23 +225,24 @@ class OrderService implements IOrderService {
     };
 
     const result = items.reduce<SettlementResult>((result, item) => {
-      result.itemsCount += item.amount;
-      result.total.price += item.price * item.amount;
-      result.total.memberPrice += item.memberPrice * item.amount;
-      result.total.vipPrice += item.vipPrice * item.amount;
-      result.total.svipPrice += item.svipPrice * item.amount;
+      result.itemsCount += item.quantity;
+      result.total.price += item.price * item.quantity;
+      result.total.memberPrice += item.memberPrice * item.quantity;
+      result.total.vipPrice += item.vipPrice * item.quantity;
+      result.total.svipPrice += item.svipPrice * item.quantity;
       return result;
     }, settleResult);
 
     if (settleResult.deliveryFee > 0) {
       settleResult.items.push({
-        id: -1,
+        productId: null,
+        productSkuId: null,
         name: '運費',
         price: settleResult.deliveryFee,
         memberPrice: settleResult.deliveryFee,
         vipPrice: settleResult.deliveryFee,
         svipPrice: settleResult.deliveryFee,
-        amount: 1,
+        quantity: 1,
       });
       settleResult.itemsCount += 1;
       settleResult.total.price += settleResult.deliveryFee;

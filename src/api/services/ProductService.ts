@@ -3,12 +3,24 @@ import { Product } from '@prisma/client';
 import { ProductAttribute } from '.prisma/client';
 
 interface CreateProductInput {
+  categoryId?: number;
+  skuId?: string;
   name: string;
   price: number;
   memberPrice: number;
   vipPrice: number;
   svipPrice: number;
+  attribute?: ProductAttribute;
+}
+interface UpdateProductInput {
+  id: number;
   categoryId?: number;
+  skuId?: string;
+  name: string;
+  price: number;
+  memberPrice: number;
+  vipPrice: number;
+  svipPrice: number;
   attribute?: ProductAttribute;
 }
 
@@ -19,22 +31,15 @@ interface GetProductsInput {
     skip: number;
   };
 }
-interface UpdateProductInput {
-  id: number;
-  name: string;
-  price: number;
-  memberPrice: number;
-  vipPrice: number;
-  svipPrice: number;
-  attribute?: ProductAttribute;
-}
 interface IProductService {
   createProduct(data: CreateProductInput): Promise<Product | null>;
+  updateProduct(data: UpdateProductInput): Promise<Product | null>;
+  deleteProduct(data: { id: number }): Promise<{ id: number } | null>;
   getProductById(data: { id: number }): Promise<Product | null>;
   getProductsByIds(data: { ids: number[] }): Promise<Product[]>;
   getProducts(data: GetProductsInput): Promise<Product[]>;
-  updateProduct(data: UpdateProductInput): Promise<Product | null>;
-  deleteProduct(data: { id: number }): Promise<{ id: number } | null>;
+  checkCreateValidAttribute(data: CreateProductInput): Promise<boolean>;
+  checkUpdateValidAttribute(data: UpdateProductInput): Promise<boolean>;
 }
 
 class ProductService implements IProductService {
@@ -43,6 +48,7 @@ class ProductService implements IProductService {
       const product = await prisma.product.create({
         data: {
           ...data,
+          skuId: data.skuId,
           categoryId: data.categoryId,
         },
       });
@@ -108,6 +114,46 @@ class ProductService implements IProductService {
     } catch (err) {
       return null;
     }
+  }
+
+  async checkCreateValidAttribute(data: CreateProductInput): Promise<boolean> {
+    if (data.attribute === 'GENERAL') {
+      if (
+        !data.skuId ||
+        !!(await prisma.product.findFirst({
+          where: {
+            skuId: data.skuId,
+          },
+        }))
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+  async checkUpdateValidAttribute(data: UpdateProductInput): Promise<boolean> {
+    if (data.attribute === 'GENERAL') {
+      if (
+        !data.skuId ||
+        !!(await prisma.product.findFirst({
+          where: {
+            AND: [
+              {
+                skuId: data.skuId,
+              },
+              {
+                NOT: {
+                  id: data.id,
+                },
+              },
+            ],
+          },
+        }))
+      ) {
+        return false;
+      }
+    }
+    return true;
   }
 }
 

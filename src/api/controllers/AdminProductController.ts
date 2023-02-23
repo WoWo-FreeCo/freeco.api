@@ -6,6 +6,7 @@ import { ProductAttribute } from '.prisma/client';
 
 const idSchema = number().required();
 interface CreateBody {
+  skuId?: string;
   categoryId?: number;
   name: string;
   price: number;
@@ -16,6 +17,7 @@ interface CreateBody {
 }
 
 const createSchema: ObjectSchema<CreateBody> = object({
+  skuId: string().min(1).max(20).optional(),
   categoryId: number().optional(),
   name: string().required(),
   price: number().min(0).required(),
@@ -23,11 +25,14 @@ const createSchema: ObjectSchema<CreateBody> = object({
   vipPrice: number().min(0).required(),
   svipPrice: number().min(0).required(),
   attribute: string()
-    .oneOf([ProductAttribute.GENERAL, ProductAttribute.CODE_CHAIN])
+    .default(ProductAttribute.GENERAL)
+    .oneOf([ProductAttribute.GENERAL, ProductAttribute.COLD_CHAIN])
     .optional(),
 });
 
 interface UpdateBody {
+  skuId?: string;
+  categoryId?: number;
   name: string;
   price: number;
   memberPrice: number;
@@ -37,18 +42,22 @@ interface UpdateBody {
 }
 
 const updateSchema: ObjectSchema<UpdateBody> = object({
+  skuId: string().min(1).max(20).optional(),
+  categoryId: number().optional(),
   name: string().required(),
   price: number().min(0).required(),
   memberPrice: number().min(0).required(),
   vipPrice: number().min(0).required(),
   svipPrice: number().min(0).required(),
   attribute: string()
-    .oneOf([ProductAttribute.GENERAL, ProductAttribute.CODE_CHAIN])
+    .default(ProductAttribute.GENERAL)
+    .oneOf([ProductAttribute.GENERAL, ProductAttribute.COLD_CHAIN])
     .optional(),
 });
 
 interface Product {
   id: number;
+  skuId?: string;
   name: string;
   price: number;
   memberPrice: number;
@@ -68,6 +77,16 @@ class AdminProductController {
     }
 
     try {
+      const valid = await AdminProductService.checkCreateValidAttribute({
+        ...createBody,
+      });
+      if (!valid) {
+        res.status(httpStatus.BAD_REQUEST).json({
+          message: `Product with attribute [${createBody.attribute}] is invalid.`,
+        });
+        return;
+      }
+
       const product = await AdminProductService.createProduct({
         ...createBody,
       });
@@ -108,6 +127,17 @@ class AdminProductController {
     }
 
     try {
+      const valid = await AdminProductService.checkUpdateValidAttribute({
+        id,
+        ...updateBody,
+      });
+      if (!valid) {
+        res.status(httpStatus.BAD_REQUEST).json({
+          message: `Product with attribute [${updateBody.attribute}] is invalid.`,
+        });
+        return;
+      }
+
       const product = await AdminProductService.updateProduct({
         id,
         ...updateBody,

@@ -14,15 +14,18 @@ import UserService from '../services/UserService';
 import userService from '../services/UserService';
 import PaymentService, { SettlementResult } from '../services/PaymentService';
 import OrderService, { Timeslot } from '../services/OrderService';
+import config from 'config';
+import { ProductAttribute } from '.prisma/client';
+import { OrderStatus } from '@prisma/client';
 
 interface Product {
   id: number;
-  amount: number;
+  quantity: number;
 }
 
 const productSchema: ObjectSchema<Product> = object({
   id: number().required(),
-  amount: number().required().min(1),
+  quantity: number().required().min(1),
 });
 
 const timeslotSchema: ObjectSchema<Timeslot> = object({
@@ -77,6 +80,7 @@ interface InvoiceParams {
   customerEmail: string;
   customerPhone: string;
   customerAddr: string;
+  customerIdentifier?: string;
   carruerType: '' | '1' | '2' | '3';
   carruerNum: string;
   donation: '0' | '1';
@@ -88,6 +92,7 @@ const invoiceParamsSchema: ObjectSchema<InvoiceParams> = object({
   customerEmail: string().email().required(),
   customerPhone: string().required(),
   customerAddr: string().required(),
+  customerIdentifier: string().length(8).optional(),
   carruerType: string().oneOf(['', '1', '2', '3']).ensure(),
   carruerNum: string().default('').optional(),
   donation: string().oneOf(['0', '1']).required(),
@@ -95,16 +100,21 @@ const invoiceParamsSchema: ObjectSchema<InvoiceParams> = object({
 });
 
 interface SettlementBody {
+  attribute: ProductAttribute;
   products: Product[];
 }
 
 const settleSchema: ObjectSchema<SettlementBody> = object({
+  attribute: string()
+    .oneOf([ProductAttribute.GENERAL, ProductAttribute.COLD_CHAIN])
+    .required(),
   products: array().required().of(productSchema),
 });
 
 type Settlement = SettlementResult;
 
 interface PaymentBody {
+  attribute: ProductAttribute;
   consignee: Consignee;
   products: Product[];
   invoiceParams: InvoiceParams;
@@ -112,6 +122,9 @@ interface PaymentBody {
 }
 
 const paymentSchema: ObjectSchema<PaymentBody> = object({
+  attribute: string()
+    .oneOf([ProductAttribute.GENERAL, ProductAttribute.COLD_CHAIN])
+    .required(),
   consignee: consigneeSchema,
   products: array().required().of(productSchema),
   invoiceParams: invoiceParamsSchema,
@@ -164,15 +177,17 @@ class PaymentController {
           : settlementResult.total.price;
 
       // Note: Create an order
-      await OrderService.createOrder({
+      const order = await OrderService.createOrder({
         userId: user.id,
         price,
+        attribute: paymentBody.attribute,
         consignee: paymentBody.consignee,
         items: settlementResult.items.map((item) => ({
-          productId: item.id,
+          productId: item.productId,
+          productSkuId: item.productSkuId,
           name: item.name,
           price: item.price,
-          quantity: item.amount,
+          quantity: item.quantity,
         })),
       });
 
@@ -189,10 +204,12 @@ class PaymentController {
           products: paymentBody.products,
         },
         paymentParams: {
+          merchantTradeNo: order.merchantTradeNo,
           choosePayment: 'Credit',
           tradeDesc: 'This is trade description',
         },
         invoiceParams: {
+          relateNumber: order.relateNumber,
           ...paymentBody.invoiceParams,
         },
       });
@@ -203,7 +220,7 @@ class PaymentController {
     }
   }
 
-  async settlement(
+  async preSettlement(
     req: Request,
     res: Response,
     next: NextFunction,
@@ -240,18 +257,38 @@ class PaymentController {
     res: Response,
     next: NextFunction,
   ): Promise<void> {
+    if (config.get<boolean>('isDevelopment')) {
+      Logger.debug(`Result from ECPAY: ${JSON.stringify(req.body, null, 3)}`);
+    }
     try {
       if (req.body.RtnCode === '1') {
-        const o = await OrderService.getOrderByMerchantTradeNo({
+        const orderDetail = await OrderService.getOrderDetailByMerchantTradeNo({
           merchantTradeNo: req.body.MerchantTradeNo,
         });
-
-        if (o && o.consignee) {
-          await OrderService.createOutboundOrder({
-            order: o,
-            consignee: o.consignee,
-            orderItems: o.orderItems,
-          });
+        if (orderDetail && orderDetail.consignee) {
+          switch (orderDetail.attribute) {
+            case 'GENERAL':
+              await OrderService.createOutboundOrder({
+                order: orderDetail,
+                consignee: orderDetail.consignee,
+                orderItems: orderDetail.orderItems,
+              });
+              break;
+          }
+          if (orderDetail.orderStatus === OrderStatus.WAIT_PAYMENT) {
+            await OrderService.settleOrder({ id: orderDetail.id });
+          } else if (orderDetail.orderStatus === OrderStatus.CANCELLED) {
+            // TODO: (1) 綠界取消退款
+            // TODO: (2) 變更 orderStatus 為 REVOKED
+          } else {
+            Logger.error(
+              `Error: Order payment has been settled in advance. There might be potential bugs beneath.`,
+            );
+          }
+        } else {
+          Logger.error(
+            `Error: Cannot fetch order by MerchantTradeNo[${req.body.MerchantTradeNo}]. This error will cause oneWarehouse not receive this order`,
+          );
         }
       } else {
         Logger.error(`ECPay Error(${req.body.RtnCode}): ${req.body.RtnMsg}`);

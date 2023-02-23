@@ -5,6 +5,7 @@ import AdminProductCategoryController from '../../controllers/AdminProductCatego
 import AdminProductController from '../../controllers/AdminProductController';
 import AdminHomeBannerController from '../../controllers/AdminHomeBannerController';
 import AdminCheckContentController from '../../controllers/AdminCheckContentController';
+import OrderController from '../../controllers/OrderController';
 
 const adminUserRouter: Router = Router();
 adminUserRouter
@@ -45,6 +46,11 @@ adminCheckContentRouter
   .put(AdminCheckContentController.update)
   .delete(AdminCheckContentController.delete);
 
+const adminOrderRouter: Router = Router();
+adminOrderRouter
+  .get('', OrderController.getMany)
+  .get('/:id/detail', OrderController.getDetail);
+
 const adminRoute: Router = Router();
 adminRoute
   .use('/user', adminUserRouter)
@@ -63,6 +69,7 @@ adminRoute
     '/check-content',
     AuthMiddleware.authenticate('adminUser'),
     adminCheckContentRouter,
-  );
+  )
+  .use('/order', AuthMiddleware.authenticate('adminUser'), adminOrderRouter);
 
 export default adminRoute;
