@@ -50,6 +50,8 @@ interface PaymentInput {
   invoiceParams: {
     //Note: 請帶30碼uid ex: SJDFJGH24FJIL97G73653XM0VOMS4K
     relateNumber: string;
+    // Note: 統一編號 固定 8 位長度數字
+    customerIdentifier?: string;
     customerName: string;
     customerAddr: string;
     customerPhone: string;
@@ -138,7 +140,7 @@ class OrderService implements IOrderService {
     const inv_params = {
       RelateNumber: data.invoiceParams.relateNumber, //請帶30碼uid ex: SJDFJGH24FJIL97G73653XM0VOMS4K
       CustomerID: '', //會員編號
-      CustomerIdentifier: '00000000', //統一編號
+      CustomerIdentifier: data.invoiceParams.customerIdentifier,
       CustomerName: data.invoiceParams.customerName,
       CustomerAddr: data.invoiceParams.customerAddr,
       CustomerPhone: data.invoiceParams.customerPhone,
@@ -154,11 +156,6 @@ class OrderService implements IOrderService {
       DelayDay: '0',
       InvType: '07',
       ...InvoiceItem,
-      // InvoiceItemName: '測試商品1|測試商品2',
-      // InvoiceItemCount: '2|3',
-      // InvoiceItemWord: '個|包',
-      // InvoiceItemPrice: '35|10',
-      // InvoiceItemTaxType: '1|1',
     };
     const create = new ecpay_payment(ecpayOptions);
     const html = create.payment_client.aio_check_out_credit_onetime(

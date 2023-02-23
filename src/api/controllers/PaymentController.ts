@@ -79,6 +79,7 @@ interface InvoiceParams {
   customerEmail: string;
   customerPhone: string;
   customerAddr: string;
+  customerIdentifier?: string;
   carruerType: '' | '1' | '2' | '3';
   carruerNum: string;
   donation: '0' | '1';
@@ -90,6 +91,7 @@ const invoiceParamsSchema: ObjectSchema<InvoiceParams> = object({
   customerEmail: string().email().required(),
   customerPhone: string().required(),
   customerAddr: string().required(),
+  customerIdentifier: string().length(8).optional(),
   carruerType: string().oneOf(['', '1', '2', '3']).ensure(),
   carruerNum: string().default('').optional(),
   donation: string().oneOf(['0', '1']).required(),
@@ -255,7 +257,7 @@ class PaymentController {
     next: NextFunction,
   ): Promise<void> {
     if (config.get<boolean>('isDevelopment')) {
-      Logger.debug(`Result from ECPAY: ${req.body.toString()}`);
+      Logger.debug(`Result from ECPAY: ${JSON.stringify(req.body, null, 3)}`);
     }
     try {
       if (req.body.RtnCode === '1') {
