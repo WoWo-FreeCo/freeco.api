@@ -21,6 +21,7 @@ const getManyByAttributeSchema: ObjectSchema<GetManyByAttributeQuery> = object({
 interface Order {
   id: string;
   orderStatus: OrderStatus;
+  attribute: ProductAttribute;
   price: number;
   createdAt: Date;
 }
@@ -28,6 +29,7 @@ interface Order {
 interface OrderDetail {
   id: string;
   orderStatus: OrderStatus;
+  attribute: ProductAttribute;
   price: number;
   createdAt: Date;
   consignee: {
@@ -91,6 +93,7 @@ class OrderController {
       const responseData: Order[] = orders.map((order) => ({
         id: order.id,
         orderStatus: order.orderStatus,
+        attribute: order.attribute,
         price: order.price,
         createdAt: order.createdAt,
       }));
@@ -137,6 +140,7 @@ class OrderController {
       const responseData: OrderDetail = {
         id: orderDetail.id,
         orderStatus: orderDetail.orderStatus,
+        attribute: orderDetail.attribute,
         price: orderDetail.price,
         createdAt: orderDetail.createdAt,
         consignee: {
