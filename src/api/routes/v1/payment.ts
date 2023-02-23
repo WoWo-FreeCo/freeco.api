@@ -10,7 +10,7 @@ PaymentRoute.post(
   OrderController.payment,
 )
   .post(
-    '/settlement',
+    '/pre-settlement',
     AuthMiddleware.authenticate('user'),
     OrderController.preSettlement,
   )
