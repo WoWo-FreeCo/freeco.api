@@ -6,6 +6,7 @@ import { ProductAttribute } from '.prisma/client';
 
 const idSchema = number().required();
 interface CreateBody {
+  skuId?: string;
   categoryId?: number;
   name: string;
   price: number;
@@ -16,6 +17,7 @@ interface CreateBody {
 }
 
 const createSchema: ObjectSchema<CreateBody> = object({
+  skuId: string().length(20).optional(),
   categoryId: number().optional(),
   name: string().required(),
   price: number().min(0).required(),
@@ -23,6 +25,7 @@ const createSchema: ObjectSchema<CreateBody> = object({
   vipPrice: number().min(0).required(),
   svipPrice: number().min(0).required(),
   attribute: string()
+    .default(ProductAttribute.GENERAL)
     .oneOf([ProductAttribute.GENERAL, ProductAttribute.CODE_CHAIN])
     .optional(),
 });
@@ -43,12 +46,14 @@ const updateSchema: ObjectSchema<UpdateBody> = object({
   vipPrice: number().min(0).required(),
   svipPrice: number().min(0).required(),
   attribute: string()
+    .default(ProductAttribute.GENERAL)
     .oneOf([ProductAttribute.GENERAL, ProductAttribute.CODE_CHAIN])
     .optional(),
 });
 
 interface Product {
   id: number;
+  skuId?: string;
   name: string;
   price: number;
   memberPrice: number;
@@ -68,6 +73,16 @@ class AdminProductController {
     }
 
     try {
+      const valid = await AdminProductService.checkValidAttribute({
+        ...createBody,
+      });
+      if (!valid) {
+        res.status(httpStatus.BAD_REQUEST).json({
+          message: `Product with attribute [${createBody.attribute}] is invalid.`,
+        });
+        return;
+      }
+
       const product = await AdminProductService.createProduct({
         ...createBody,
       });

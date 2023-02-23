@@ -1,3 +1,12 @@
+/*
+  Warnings:
+
+  - A unique constraint covering the columns `[skuId]` on the table `Product` will be added. If there are existing duplicate values, this will fail.
+
+*/
+-- AlterTable
+ALTER TABLE `Product` ADD COLUMN `skuId` VARCHAR(20) NULL;
+
 -- CreateTable
 CREATE TABLE `Order` (
     `id` VARCHAR(19) NOT NULL,
@@ -55,10 +64,14 @@ CREATE TABLE `OrderItem` (
     `price` INTEGER NOT NULL,
     `orderId` VARCHAR(19) NOT NULL,
     `productId` INTEGER NOT NULL,
+    `productSkuId` VARCHAR(20) NULL,
     `quantity` INTEGER NOT NULL,
 
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateIndex
+CREATE UNIQUE INDEX `Product_skuId_key` ON `Product`(`skuId`);
 
 -- AddForeignKey
 ALTER TABLE `Order` ADD CONSTRAINT `Order_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
@@ -71,3 +84,6 @@ ALTER TABLE `OrderItem` ADD CONSTRAINT `OrderItem_orderId_fkey` FOREIGN KEY (`or
 
 -- AddForeignKey
 ALTER TABLE `OrderItem` ADD CONSTRAINT `OrderItem_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `OrderItem` ADD CONSTRAINT `OrderItem_productSkuId_fkey` FOREIGN KEY (`productSkuId`) REFERENCES `Product`(`skuId`) ON DELETE RESTRICT ON UPDATE CASCADE;
