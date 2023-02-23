@@ -1,6 +1,6 @@
 import prisma from '../../database/client/prisma';
 import snowflakeId from '../../utils/snowflake-id';
-import { Order, OrderConsignee, OrderItem } from '@prisma/client';
+import { Order, OrderConsignee, OrderItem, OrderStatus } from '@prisma/client';
 import OneWarehouseClient from '../../utils/one-warehouse/client';
 import { WarehouseExpressCode } from '../../utils/one-warehouse/client/type/data';
 import { ProductAttribute } from '.prisma/client';
@@ -46,8 +46,24 @@ interface GetOrdersInput {
   pagination: Pagination;
 }
 
+export enum CancelOrderResultCode {
+  SUCCESS = 'success',
+  CO001 = 'CO-001',
+}
+interface CancelOrderResult {
+  code: CancelOrderResultCode;
+}
+
 interface IOrderService {
   createOrder(data: CreateOrderInput): Promise<Order>;
+  cancelOrder(data: { id: string }): Promise<CancelOrderResult>;
+  settleOrder(data: { id: string }): Promise<boolean>;
+  getOrderById(data: {
+    id: string;
+    restrict?: {
+      userId: string;
+    };
+  }): Promise<Order | null>;
   getOrders(
     data: GetOrdersInput & {
       restrict?: {
@@ -64,6 +80,7 @@ interface IOrderService {
     | (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })
     | null
   >;
+
   getOrderDetailByMerchantTradeNo(data: {
     merchantTradeNo: string;
   }): Promise<
@@ -121,13 +138,57 @@ class OrderService implements IOrderService {
         },
         orderItems: {
           createMany: {
-            data: data.items.filter((item) => item.productId !== -1),
+            data: data.items,
           },
         },
       },
     });
   }
 
+  async cancelOrder(data: { id: string }): Promise<CancelOrderResult> {
+    const result = await prisma.order.updateMany({
+      where: {
+        id: data.id,
+        orderStatus: OrderStatus.WAIT_PAYMENT,
+      },
+      data: {
+        orderStatus: OrderStatus.CANCELLED,
+      },
+    });
+    if (result.count === 0) {
+      return {
+        code: CancelOrderResultCode.CO001,
+      };
+    }
+
+    return {
+      code: CancelOrderResultCode.SUCCESS,
+    };
+  }
+  async settleOrder(data: { id: string }): Promise<boolean> {
+    const result = await prisma.order.updateMany({
+      where: {
+        id: data.id,
+        orderStatus: OrderStatus.WAIT_PAYMENT,
+      },
+      data: {
+        orderStatus: OrderStatus.WAIT_DELIVER,
+      },
+    });
+
+    return result.count === 1;
+  }
+  async getOrderById(data: {
+    id: string;
+    restrict?: { userId: string };
+  }): Promise<Order | null> {
+    return prisma.order.findFirst({
+      where: {
+        id: data.id,
+        userId: data.restrict?.userId,
+      },
+    });
+  }
   async getOrders(
     data: GetOrdersInput & {
       restrict?: {
@@ -224,12 +285,14 @@ class OrderService implements IOrderService {
         currency_code: data.consignee.currencyCode,
       },
       package_info: {
-        package_commodity_info_list: data.orderItems.map((item) => ({
-          item_code: item.productSkuId?.toString() || 'ERROR_SKU_ID',
-          item_name: item.name,
-          item_price: item.price,
-          quantity: item.quantity,
-        })),
+        package_commodity_info_list: data.orderItems
+          .filter((item) => !!item.productId)
+          .map((item) => ({
+            item_code: item.productSkuId?.toString() || 'ERROR_SKU_ID',
+            item_name: item.name,
+            item_price: item.price,
+            quantity: item.quantity,
+          })),
       },
       timestamp: '0',
     });

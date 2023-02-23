@@ -16,6 +16,7 @@ import PaymentService, { SettlementResult } from '../services/PaymentService';
 import OrderService, { Timeslot } from '../services/OrderService';
 import config from 'config';
 import { ProductAttribute } from '.prisma/client';
+import { OrderStatus } from '@prisma/client';
 
 interface Product {
   id: number;
@@ -219,7 +220,7 @@ class PaymentController {
     }
   }
 
-  async settlement(
+  async preSettlement(
     req: Request,
     res: Response,
     next: NextFunction,
@@ -273,6 +274,16 @@ class PaymentController {
                 orderItems: orderDetail.orderItems,
               });
               break;
+          }
+          if (orderDetail.orderStatus === OrderStatus.WAIT_PAYMENT) {
+            await OrderService.settleOrder({ id: orderDetail.id });
+          } else if (orderDetail.orderStatus === OrderStatus.CANCELLED) {
+            // TODO: (1) 綠界取消退款
+            // TODO: (2) 變更 orderStatus 為 REVOKED
+          } else {
+            Logger.error(
+              `Error: Order payment has been settled in advance. There might be potential bugs beneath.`,
+            );
           }
         } else {
           Logger.error(

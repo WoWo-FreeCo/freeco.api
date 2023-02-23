@@ -12,7 +12,7 @@ PaymentRoute.post(
   .post(
     '/settlement',
     AuthMiddleware.authenticate('user'),
-    OrderController.settlement,
+    OrderController.preSettlement,
   )
   .post('/listen-to-result', OrderController.listenResult);
 export default PaymentRoute;

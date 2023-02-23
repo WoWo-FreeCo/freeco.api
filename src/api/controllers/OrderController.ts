@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { number, object, ObjectSchema, string, ValidationError } from 'yup';
 import OrderService from '../services/OrderService';
+import orderService, { CancelOrderResultCode } from '../services/OrderService';
 import httpStatus from 'http-status';
 import { Pagination } from '../../utils/helper/pagination';
 import { ProductAttribute } from '.prisma/client';
@@ -169,6 +170,62 @@ class OrderController {
         })),
       };
       res.status(httpStatus.OK).json({ data: responseData });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async cancel(req: Request, res: Response, next: NextFunction): Promise<void> {
+    let id: string;
+    try {
+      // Note: Check params is valid
+      id = await idSchema.validate(req.params.id);
+    } catch (err) {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+
+    try {
+      const { role, id: userId } = req.userdata;
+      // Note: Check order exist (or user has the right to access the order)
+      const order = await orderService.getOrderById({
+        id,
+        restrict:
+          role === 'USER'
+            ? {
+                userId,
+              }
+            : undefined,
+      });
+
+      if (!order) {
+        res.status(httpStatus.BAD_REQUEST).json({ message: 'Id is invalid.' });
+        return;
+      }
+
+      if (order.orderStatus === OrderStatus.CANCELLED) {
+        res.status(httpStatus.BAD_REQUEST).json({
+          message: 'Order has been cancelled.',
+        });
+        return;
+      }
+
+      if (order.orderStatus !== OrderStatus.WAIT_PAYMENT) {
+        res.status(httpStatus.BAD_REQUEST).json({
+          message:
+            'Order payment has been paid. The order cannot be canceled at this time. ' +
+            'Please contact our customer service staff for effective assistance.',
+        });
+        return;
+      }
+
+      const result = await orderService.cancelOrder({ id });
+      if (result.code !== CancelOrderResultCode.SUCCESS) {
+        res.sendStatus(httpStatus.INTERNAL_SERVER_ERROR);
+        return;
+      }
+      res.sendStatus(httpStatus.ACCEPTED);
+      return;
     } catch (err) {
       next(err);
     }
