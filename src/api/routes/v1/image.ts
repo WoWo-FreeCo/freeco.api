@@ -4,5 +4,5 @@ import ImageController from '../../controllers/ImageController';
 
 const imageRoute: Router = Router();
 
-imageRoute.route('').post(upload.single('image'),ImageController.create);
+imageRoute.route('').post(upload.array('image'),ImageController.create);
 export default imageRoute;
