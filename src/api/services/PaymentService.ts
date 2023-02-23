@@ -15,8 +15,8 @@ interface SettlementInput {
 
 export interface SettlementResult {
   items: {
-    id: number;
-    skuId: string | null;
+    productId: number | null;
+    productSkuId: string | null;
     name: string;
     quantity: number;
     price: number;
@@ -184,8 +184,8 @@ class OrderService implements IOrderService {
       if (product) {
         if (!settlementItem) {
           settlementItemsMap.set(product.id, {
-            id: product.id,
-            skuId: product.skuId,
+            productId: product.id,
+            productSkuId: product.skuId,
             name: product.name,
             quantity: item.quantity,
             price: item.quantity * product.price,
@@ -235,8 +235,8 @@ class OrderService implements IOrderService {
 
     if (settleResult.deliveryFee > 0) {
       settleResult.items.push({
-        id: -1,
-        skuId: null,
+        productId: null,
+        productSkuId: null,
         name: '運費',
         price: settleResult.deliveryFee,
         memberPrice: settleResult.deliveryFee,

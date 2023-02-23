@@ -33,7 +33,7 @@ interface CreateOrderInput {
     senderRemark?: string;
   };
   items: {
-    productId: number;
+    productId: number | null;
     productSkuId: string | null;
     name: string;
     price: number;

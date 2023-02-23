@@ -50,7 +50,7 @@ interface OrderDetail {
     senderRemark: string | null;
   };
   items: {
-    productId: number;
+    productId: number | null;
     skuId: string | null;
     name: string;
     price: number;

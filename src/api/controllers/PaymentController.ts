@@ -182,8 +182,8 @@ class PaymentController {
         attribute: paymentBody.attribute,
         consignee: paymentBody.consignee,
         items: settlementResult.items.map((item) => ({
-          productSkuId: item.skuId,
-          productId: item.id,
+          productId: item.productId,
+          productSkuId: item.productSkuId,
           name: item.name,
           price: item.price,
           quantity: item.quantity,
