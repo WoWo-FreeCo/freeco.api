@@ -14,6 +14,8 @@ import UserService from '../services/UserService';
 import userService from '../services/UserService';
 import PaymentService, { SettlementResult } from '../services/PaymentService';
 import OrderService, { Timeslot } from '../services/OrderService';
+import config from 'config';
+import { ProductAttribute } from '.prisma/client';
 
 interface Product {
   id: number;
@@ -95,16 +97,21 @@ const invoiceParamsSchema: ObjectSchema<InvoiceParams> = object({
 });
 
 interface SettlementBody {
+  attribute: ProductAttribute;
   products: Product[];
 }
 
 const settleSchema: ObjectSchema<SettlementBody> = object({
+  attribute: string()
+    .oneOf([ProductAttribute.GENERAL, ProductAttribute.COLD_CHAIN])
+    .required(),
   products: array().required().of(productSchema),
 });
 
 type Settlement = SettlementResult;
 
 interface PaymentBody {
+  attribute: ProductAttribute;
   consignee: Consignee;
   products: Product[];
   invoiceParams: InvoiceParams;
@@ -112,6 +119,9 @@ interface PaymentBody {
 }
 
 const paymentSchema: ObjectSchema<PaymentBody> = object({
+  attribute: string()
+    .oneOf([ProductAttribute.GENERAL, ProductAttribute.COLD_CHAIN])
+    .required(),
   consignee: consigneeSchema,
   products: array().required().of(productSchema),
   invoiceParams: invoiceParamsSchema,
@@ -164,11 +174,13 @@ class PaymentController {
           : settlementResult.total.price;
 
       // Note: Create an order
-      await OrderService.createOrder({
+      const order = await OrderService.createOrder({
         userId: user.id,
         price,
+        attribute: paymentBody.attribute,
         consignee: paymentBody.consignee,
         items: settlementResult.items.map((item) => ({
+          productSkuId: item.skuId,
           productId: item.id,
           name: item.name,
           price: item.price,
@@ -189,10 +201,12 @@ class PaymentController {
           products: paymentBody.products,
         },
         paymentParams: {
+          merchantTradeNo: order.merchantTradeNo,
           choosePayment: 'Credit',
           tradeDesc: 'This is trade description',
         },
         invoiceParams: {
+          relateNumber: order.relateNumber,
           ...paymentBody.invoiceParams,
         },
       });
@@ -240,18 +254,28 @@ class PaymentController {
     res: Response,
     next: NextFunction,
   ): Promise<void> {
+    if (config.get<boolean>('isDevelopment')) {
+      Logger.debug(`Result from ECPAY: ${req.body.toString()}`);
+    }
     try {
       if (req.body.RtnCode === '1') {
         const o = await OrderService.getOrderByMerchantTradeNo({
           merchantTradeNo: req.body.MerchantTradeNo,
         });
-
         if (o && o.consignee) {
-          await OrderService.createOutboundOrder({
-            order: o,
-            consignee: o.consignee,
-            orderItems: o.orderItems,
-          });
+          switch (o.attribute) {
+            case 'GENERAL':
+              await OrderService.createOutboundOrder({
+                order: o,
+                consignee: o.consignee,
+                orderItems: o.orderItems,
+              });
+              break;
+          }
+        } else {
+          Logger.error(
+            `Error: Cannot fetch order by MerchantTradeNo[${req.body.MerchantTradeNo}]. This error will cause oneWarehouse not receive this order`,
+          );
         }
       } else {
         Logger.error(`ECPay Error(${req.body.RtnCode}): ${req.body.RtnMsg}`);

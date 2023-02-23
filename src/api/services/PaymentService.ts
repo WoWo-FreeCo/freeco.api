@@ -1,7 +1,6 @@
 import ProductService from './ProductService';
 import { Product as PrismaProduct } from '.prisma/client';
 import { Product } from '@prisma/client';
-import snowflakeId from '../../utils/snowflake-id';
 import moment from 'moment/moment';
 import ecpayOptions from '../../utils/ecpay/conf';
 import ecpay_payment from 'ecpay_aio_nodejs/lib/ecpay_payment';
@@ -17,6 +16,7 @@ interface SettlementInput {
 export interface SettlementResult {
   items: {
     id: number;
+    skuId: string | null;
     name: string;
     amount: number;
     price: number;
@@ -42,10 +42,14 @@ interface PaymentInput {
   price: number;
   data: SettlementInput;
   paymentParams: {
+    // Note: 請帶20碼uid, ex: f0a0d7e9fae1bb72bc93
+    merchantTradeNo: string;
     choosePayment: 'Credit';
     tradeDesc: string;
   };
   invoiceParams: {
+    //Note: 請帶30碼uid ex: SJDFJGH24FJIL97G73653XM0VOMS4K
+    relateNumber: string;
     customerName: string;
     customerAddr: string;
     customerPhone: string;
@@ -74,10 +78,9 @@ class OrderService implements IOrderService {
     if (!settlementResult) {
       return null;
     }
-    const MerchantTradeNo = snowflakeId.generateMerchantTradeNo();
     const MerchantTradeDate = moment().format('YYYY/MM/DD HH:mm:ss');
     const base_param = {
-      MerchantTradeNo, //請帶20碼uid, ex: f0a0d7e9fae1bb72bc93
+      MerchantTradeNo: data.paymentParams.merchantTradeNo, //請帶20碼uid, ex: f0a0d7e9fae1bb72bc93
       MerchantTradeDate, //ex: 2017/02/13 15:45:30
       TotalAmount: data.price.toString(),
       TradeDesc: data.paymentParams.tradeDesc,
@@ -100,7 +103,6 @@ class OrderService implements IOrderService {
       // CustomField3: '',
       // CustomField4: ''
     };
-    const RelateNumber = snowflakeId.generateRelateNumber();
     const InvoiceItem = settlementResult.items.reduce(
       (invoiceItem, item) => ({
         InvoiceItemName:
@@ -134,7 +136,7 @@ class OrderService implements IOrderService {
     );
     // 若要測試開立電子發票，請將inv_params內的"所有"參數取消註解 //
     const inv_params = {
-      RelateNumber, //請帶30碼uid ex: SJDFJGH24FJIL97G73653XM0VOMS4K
+      RelateNumber: data.invoiceParams.relateNumber, //請帶30碼uid ex: SJDFJGH24FJIL97G73653XM0VOMS4K
       CustomerID: '', //會員編號
       CustomerIdentifier: '00000000', //統一編號
       CustomerName: data.invoiceParams.customerName,
@@ -186,6 +188,7 @@ class OrderService implements IOrderService {
         if (!settlementItem) {
           settlementItemsMap.set(product.id, {
             id: product.id,
+            skuId: product.skuId,
             name: product.name,
             amount: item.amount,
             price: item.amount * product.price,
@@ -235,6 +238,7 @@ class OrderService implements IOrderService {
     if (settleResult.deliveryFee > 0) {
       settleResult.items.push({
         id: -1,
+        skuId: null,
         name: '運費',
         price: settleResult.deliveryFee,
         memberPrice: settleResult.deliveryFee,

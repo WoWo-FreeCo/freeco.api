@@ -3,6 +3,7 @@ import snowflakeId from '../../utils/snowflake-id';
 import { Order, OrderConsignee, OrderItem } from '@prisma/client';
 import OneWarehouseClient from '../../utils/one-warehouse/client';
 import { WarehouseExpressCode } from '../../utils/one-warehouse/client/type/data';
+import { ProductAttribute } from '.prisma/client';
 export interface Timeslot {
   date: Date;
   slot: string;
@@ -10,6 +11,7 @@ export interface Timeslot {
 interface CreateOrderInput {
   userId: string;
   price: number;
+  attribute: ProductAttribute;
   consignee: {
     deliveryType: 'HOME' | 'STORE';
     addressDetailOne?: string;
@@ -31,6 +33,7 @@ interface CreateOrderInput {
   };
   items: {
     productId: number;
+    productSkuId: string | null;
     name: string;
     price: number;
     quantity: number;
@@ -67,6 +70,7 @@ class OrderService implements IOrderService {
         relateNumber,
         orderStatus: 'WAIT_PAYMENT',
         price: data.price,
+        attribute: data.attribute,
         consignee: {
           create: {
             deliveryType: data.consignee.deliveryType,
@@ -156,7 +160,7 @@ class OrderService implements IOrderService {
       },
       package_info: {
         package_commodity_info_list: data.orderItems.map((item) => ({
-          item_code: item.productId.toString(),
+          item_code: item.productSkuId?.toString() || 'ERROR_SKU_ID',
           item_name: item.name,
           item_price: item.price,
           quantity: item.quantity,

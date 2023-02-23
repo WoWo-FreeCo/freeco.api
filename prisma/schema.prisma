@@ -93,17 +93,18 @@ enum DeliveryType {
 }
 
 model Order {
-  id              String          @id @db.VarChar(19)
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  userId          String          @db.VarChar(36)
-  merchantTradeNo String          @unique @db.VarChar(20)
-  relateNumber    String?         @unique @db.VarChar(30)
+  id              String           @id @db.VarChar(19)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId          String           @db.VarChar(36)
+  merchantTradeNo String           @unique @db.VarChar(20)
+  relateNumber    String           @unique @db.VarChar(30)
   orderStatus     OrderStatus
   consignee       OrderConsignee?
   orderItems      OrderItem[]
   price           Int
-  createdAt       DateTime        @default(now()) @db.Timestamp(0)
-  updatedAt       DateTime        @updatedAt @db.Timestamp(0)
+  attribute       ProductAttribute
+  createdAt       DateTime         @default(now()) @db.Timestamp(0)
+  updatedAt       DateTime         @updatedAt @db.Timestamp(0)
 
   @@index([merchantTradeNo])
   @@index([relateNumber])

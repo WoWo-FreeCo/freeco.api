@@ -14,9 +14,10 @@ CREATE TABLE `Order` (
     `id` VARCHAR(19) NOT NULL,
     `userId` VARCHAR(36) NOT NULL,
     `merchantTradeNo` VARCHAR(20) NOT NULL,
-    `relateNumber` VARCHAR(30) NULL,
+    `relateNumber` VARCHAR(30) NOT NULL,
     `orderStatus` ENUM('WAIT_PAYMENT', 'WAIT_DELIVER', 'WAIT_RECEIVE', 'COMPLETED', 'CANCELLED', 'REVOKED') NOT NULL,
     `price` INTEGER NOT NULL,
+    `attribute` ENUM('GENERAL', 'COLD_CHAIN') NOT NULL,
     `createdAt` TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
     `updatedAt` TIMESTAMP(0) NOT NULL,
 
