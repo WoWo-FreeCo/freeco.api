@@ -17,7 +17,7 @@ interface CreateBody {
 }
 
 const createSchema: ObjectSchema<CreateBody> = object({
-  skuId: string().length(20).optional(),
+  skuId: string().min(1).max(20).optional(),
   categoryId: number().optional(),
   name: string().required(),
   price: number().min(0).required(),
@@ -31,6 +31,8 @@ const createSchema: ObjectSchema<CreateBody> = object({
 });
 
 interface UpdateBody {
+  skuId?: string;
+  categoryId?: number;
   name: string;
   price: number;
   memberPrice: number;
@@ -40,6 +42,8 @@ interface UpdateBody {
 }
 
 const updateSchema: ObjectSchema<UpdateBody> = object({
+  skuId: string().min(1).max(20).optional(),
+  categoryId: number().optional(),
   name: string().required(),
   price: number().min(0).required(),
   memberPrice: number().min(0).required(),
@@ -73,7 +77,7 @@ class AdminProductController {
     }
 
     try {
-      const valid = await AdminProductService.checkValidAttribute({
+      const valid = await AdminProductService.checkCreateValidAttribute({
         ...createBody,
       });
       if (!valid) {
@@ -123,6 +127,17 @@ class AdminProductController {
     }
 
     try {
+      const valid = await AdminProductService.checkUpdateValidAttribute({
+        id,
+        ...updateBody,
+      });
+      if (!valid) {
+        res.status(httpStatus.BAD_REQUEST).json({
+          message: `Product with attribute [${updateBody.attribute}] is invalid.`,
+        });
+        return;
+      }
+
       const product = await AdminProductService.updateProduct({
         id,
         ...updateBody,
