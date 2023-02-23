@@ -2,6 +2,7 @@ export default {
   isDevelopment: process.env.NODE_ENV == 'development',
   ENVIRONMENT: process.env.NODE_ENV,
   API_PORT: process.env.API_PORT,
+  STATIC_DIR: process.cwd() + process.env.STATIC_DIR,
   ACCESS_TOKEN_EXPIRES_IN: process.env.ACCESS_TOKEN_EXPIRES_IN,
   REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN,
   ACCESS_TOKEN_PRIVATE_KEY: process.env.ACCESS_TOKEN_PRIVATE_KEY,
