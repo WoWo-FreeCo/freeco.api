@@ -9,7 +9,7 @@ import ecpayBaseOptions from '../../utils/ecpay/conf/baseOptions';
 interface SettlementInput {
   products: {
     id: number;
-    amount: number;
+    quantity: number;
   }[];
 }
 
@@ -187,22 +187,23 @@ class OrderService implements IOrderService {
             id: product.id,
             skuId: product.skuId,
             name: product.name,
-            amount: item.amount,
-            price: item.amount * product.price,
-            memberPrice: item.amount * product.memberPrice,
-            vipPrice: item.amount * product.vipPrice,
-            svipPrice: item.amount * product.svipPrice,
+            amount: item.quantity,
+            price: item.quantity * product.price,
+            memberPrice: item.quantity * product.memberPrice,
+            vipPrice: item.quantity * product.vipPrice,
+            svipPrice: item.quantity * product.svipPrice,
           });
         } else {
           settlementItemsMap.set(product.id, {
             ...settlementItem,
-            amount: settlementItem.amount + item.amount,
-            price: settlementItem.price + item.amount * product.price,
+            amount: settlementItem.amount + item.quantity,
+            price: settlementItem.price + item.quantity * product.price,
             memberPrice:
-              settlementItem.memberPrice + item.amount * product.memberPrice,
-            vipPrice: settlementItem.vipPrice + item.amount * product.vipPrice,
+              settlementItem.memberPrice + item.quantity * product.memberPrice,
+            vipPrice:
+              settlementItem.vipPrice + item.quantity * product.vipPrice,
             svipPrice:
-              settlementItem.svipPrice + item.amount * product.svipPrice,
+              settlementItem.svipPrice + item.quantity * product.svipPrice,
           });
         }
       } else {

@@ -49,7 +49,13 @@ interface GetOrdersInput {
 interface IOrderService {
   createOrder(data: CreateOrderInput): Promise<Order>;
   getOrders(data: GetOrdersInput): Promise<Order[]>;
-  getOrderByMerchantTradeNo(data: {
+  getOrderDetailById(data: {
+    id: string;
+  }): Promise<
+    | (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })
+    | null
+  >;
+  getOrderDetailByMerchantTradeNo(data: {
     merchantTradeNo: string;
   }): Promise<
     | (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })
@@ -128,7 +134,23 @@ class OrderService implements IOrderService {
       },
     });
   }
-  async getOrderByMerchantTradeNo(data: {
+  async getOrderDetailById(data: {
+    id: string;
+  }): Promise<
+    | (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })
+    | null
+  > {
+    return prisma.order.findFirst({
+      where: {
+        id: data.id,
+      },
+      include: {
+        consignee: true,
+        orderItems: true,
+      },
+    });
+  }
+  async getOrderDetailByMerchantTradeNo(data: {
     merchantTradeNo: string;
   }): Promise<
     | (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })

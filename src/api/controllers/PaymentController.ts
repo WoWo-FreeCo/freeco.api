@@ -19,12 +19,12 @@ import { ProductAttribute } from '.prisma/client';
 
 interface Product {
   id: number;
-  amount: number;
+  quantity: number;
 }
 
 const productSchema: ObjectSchema<Product> = object({
   id: number().required(),
-  amount: number().required().min(1),
+  quantity: number().required().min(1),
 });
 
 const timeslotSchema: ObjectSchema<Timeslot> = object({
@@ -261,16 +261,16 @@ class PaymentController {
     }
     try {
       if (req.body.RtnCode === '1') {
-        const o = await OrderService.getOrderByMerchantTradeNo({
+        const orderDetail = await OrderService.getOrderDetailByMerchantTradeNo({
           merchantTradeNo: req.body.MerchantTradeNo,
         });
-        if (o && o.consignee) {
-          switch (o.attribute) {
+        if (orderDetail && orderDetail.consignee) {
+          switch (orderDetail.attribute) {
             case 'GENERAL':
               await OrderService.createOutboundOrder({
-                order: o,
-                consignee: o.consignee,
-                orderItems: o.orderItems,
+                order: orderDetail,
+                consignee: orderDetail.consignee,
+                orderItems: orderDetail.orderItems,
               });
               break;
           }

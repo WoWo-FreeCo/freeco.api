@@ -5,7 +5,7 @@ import AdminProductCategoryController from '../../controllers/AdminProductCatego
 import AdminProductController from '../../controllers/AdminProductController';
 import AdminHomeBannerController from '../../controllers/AdminHomeBannerController';
 import AdminCheckContentController from '../../controllers/AdminCheckContentController';
-import AdminOrderController from '../../controllers/AdminOrderController';
+import OrderController from '../../controllers/OrderController';
 
 const adminUserRouter: Router = Router();
 adminUserRouter
@@ -47,7 +47,9 @@ adminCheckContentRouter
   .delete(AdminCheckContentController.delete);
 
 const adminOrderRouter: Router = Router();
-adminOrderRouter.get('', AdminOrderController.getMany);
+adminOrderRouter
+  .get('', OrderController.getMany)
+  .get('/:id/detail', OrderController.getDetail);
 
 const adminRoute: Router = Router();
 adminRoute
