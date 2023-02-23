@@ -1,11 +1,13 @@
 /*
   Warnings:
 
+  - The values [CODE_CHAIN] on the enum `Product_attribute` will be removed. If these variants are still used in the database, this will fail.
   - A unique constraint covering the columns `[skuId]` on the table `Product` will be added. If there are existing duplicate values, this will fail.
 
 */
 -- AlterTable
-ALTER TABLE `Product` ADD COLUMN `skuId` VARCHAR(20) NULL;
+ALTER TABLE `Product` ADD COLUMN `skuId` VARCHAR(20) NULL,
+    MODIFY `attribute` ENUM('GENERAL', 'COLD_CHAIN') NOT NULL DEFAULT 'GENERAL';
 
 -- CreateTable
 CREATE TABLE `Order` (

@@ -26,7 +26,7 @@ const createSchema: ObjectSchema<CreateBody> = object({
   svipPrice: number().min(0).required(),
   attribute: string()
     .default(ProductAttribute.GENERAL)
-    .oneOf([ProductAttribute.GENERAL, ProductAttribute.CODE_CHAIN])
+    .oneOf([ProductAttribute.GENERAL, ProductAttribute.COLD_CHAIN])
     .optional(),
 });
 
@@ -47,7 +47,7 @@ const updateSchema: ObjectSchema<UpdateBody> = object({
   svipPrice: number().min(0).required(),
   attribute: string()
     .default(ProductAttribute.GENERAL)
-    .oneOf([ProductAttribute.GENERAL, ProductAttribute.CODE_CHAIN])
+    .oneOf([ProductAttribute.GENERAL, ProductAttribute.COLD_CHAIN])
     .optional(),
 });
 

@@ -161,7 +161,7 @@ model ProductCategory {
 
 enum ProductAttribute {
   GENERAL
-  CODE_CHAIN
+  COLD_CHAIN
 }
 
 model Product {
