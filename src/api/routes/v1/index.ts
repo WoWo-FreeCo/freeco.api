@@ -9,6 +9,7 @@ import homeBannerRoute from './homeBanner';
 import checkContentRoute from './checkContent';
 import paymentRoute from './payment';
 import orderRoute from './order';
+import webPageRoute from './webPage';
 
 const router: Router = Router();
 
@@ -22,5 +23,6 @@ router.use('/home-banner', homeBannerRoute);
 router.use('/check-content', checkContentRoute);
 router.use('/payment', paymentRoute);
 router.use('/order', orderRoute);
+router.use('/web-page', webPageRoute);
 
 export default router;

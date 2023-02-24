@@ -6,6 +6,7 @@ import AdminProductController from '../../controllers/AdminProductController';
 import AdminHomeBannerController from '../../controllers/AdminHomeBannerController';
 import AdminCheckContentController from '../../controllers/AdminCheckContentController';
 import OrderController from '../../controllers/OrderController';
+import AdminWebPageController from '../../controllers/AdminWebPageController';
 
 const adminUserRouter: Router = Router();
 adminUserRouter
@@ -52,6 +53,11 @@ adminOrderRouter
   .get('/:id/detail', OrderController.getDetail)
   .get('/:id/logistics/detail', OrderController.getLogisticsDetail);
 
+const adminWebPageRouter: Router = Router();
+adminWebPageRouter
+  .route('/:id')
+  .put(AdminWebPageController.update)
+
 const adminRoute: Router = Router();
 adminRoute
   .use('/user', adminUserRouter)
@@ -71,6 +77,11 @@ adminRoute
     AuthMiddleware.authenticate('adminUser'),
     adminCheckContentRouter,
   )
-  .use('/order', AuthMiddleware.authenticate('adminUser'), adminOrderRouter);
+  .use('/order', AuthMiddleware.authenticate('adminUser'), adminOrderRouter)
+  .use(
+    '/web-page',
+    AuthMiddleware.authenticate('adminUser'),
+    adminWebPageRouter,
+  );
 
 export default adminRoute;
