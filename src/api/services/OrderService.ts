@@ -290,11 +290,11 @@ class OrderService implements IOrderService {
           .map((item) => ({
             item_code: item.productSkuId?.toString() || 'ERROR_SKU_ID',
             item_name: item.name,
-            item_price: item.price,
+            item_price: item.price * 100,
             quantity: item.quantity,
           })),
       },
-      timestamp: '0',
+      timestamp: Date.now().toString(),
     });
   }
 }

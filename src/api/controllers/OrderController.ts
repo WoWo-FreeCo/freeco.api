@@ -6,8 +6,10 @@ import httpStatus from 'http-status';
 import { Pagination } from '../../utils/helper/pagination';
 import { ProductAttribute } from '.prisma/client';
 import { DeliveryType, OrderStatus } from '@prisma/client';
+import OneWarehouseClient from '../../utils/one-warehouse/client';
+import { WarehouseExpressCode } from '../../utils/one-warehouse/client/type/data';
 
-const idSchema = string().length(19).required();
+const idSchema = string().required();
 
 type GetManyByAttributeQuery = Pagination & { attribute?: ProductAttribute };
 
@@ -59,6 +61,18 @@ interface OrderDetail {
   }[];
 }
 
+interface LogisticsDetail {
+  id: string;
+  outboundOrderId: string;
+  packageInfos: {
+    logisticsNo: string;
+    expressNo: string;
+    providerLogisticsCode: WarehouseExpressCode;
+    deliveryType: 'HOME' | 'STORE';
+  }[];
+  outboundTime: Date | null;
+  logisticsStatus: string;
+}
 class OrderController {
   async getMany(
     req: Request,
@@ -226,6 +240,63 @@ class OrderController {
       }
       res.sendStatus(httpStatus.ACCEPTED);
       return;
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getLogisticsDetail(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    let id: string;
+    try {
+      // Note: Check params is valid
+      id = await idSchema.validate(req.params.id);
+    } catch (err) {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+    try {
+      const { role, id: userId } = req.userdata;
+      // Note: Check order exist (or user has the right to access the order)
+      const order = await orderService.getOrderById({
+        id,
+        restrict:
+          role === 'USER'
+            ? {
+                userId,
+              }
+            : undefined,
+      });
+
+      if (!order) {
+        res.status(httpStatus.BAD_REQUEST).json({ message: 'Id is invalid.' });
+        return;
+      }
+
+      const response = await OneWarehouseClient.detail({
+        order_no: id,
+        timestamp: Date.now().toString(),
+      });
+
+      const logisticsDetail: LogisticsDetail = {
+        id: response.order_no,
+        outboundOrderId: response.outbound_order_no,
+        outboundTime: response.outbound_time
+          ? new Date(response.outbound_time)
+          : null,
+        logisticsStatus: response.logistics_status,
+        packageInfos: response.package_infos.map((info) => ({
+          logisticsNo: info.logistics_no,
+          expressNo: info.express_no,
+          providerLogisticsCode: info.provider_logistics_code,
+          deliveryType: info.delivery_type === 'home' ? 'HOME' : 'STORE',
+        })),
+      };
+
+      res.status(httpStatus.OK).json({ data: logisticsDetail });
     } catch (err) {
       next(err);
     }

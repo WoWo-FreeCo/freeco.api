@@ -1,3 +1,5 @@
+import { WarehouseExpressCode } from './data';
+
 export interface OneWarehouseBaseResponse<T> {
   trace_id: string;
   code: string;
@@ -50,7 +52,7 @@ export interface DetailResponseData {
   // Note: OW出库单号
   outbound_order_no: string;
   // Note: 出库时间
-  outbound_time: string;
+  outbound_time: string | null;
   // Note: 包裹信息
   package_infos: {
     // Note: "home", "宅配" "store", "超商取货"
@@ -76,7 +78,7 @@ export interface DetailResponseData {
       sku: string;
     }[];
     // Note: 仓配物流商编码
-    provider_logistics_code: string;
+    provider_logistics_code: WarehouseExpressCode;
     // Note: 仓库编码
     warehouse_code: string;
   }[];
