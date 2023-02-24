@@ -1,12 +1,14 @@
-import ProductService from './ProductService';
-import { Product as PrismaProduct } from '.prisma/client';
-import { Product } from '@prisma/client';
+import ProductService, { ProductsItemization } from './ProductService';
+import { User, UserActivation } from '@prisma/client';
 import moment from 'moment/moment';
 import ecpayOptions from '../../utils/ecpay/conf';
-import ecpay_payment from 'ecpay_aio_nodejs/lib/ecpay_payment';
+import EcpayPayment from 'ecpay_aio_nodejs/lib/ecpay_payment';
 import ecpayBaseOptions from '../../utils/ecpay/conf/baseOptions';
+import userService, { MemberLevel } from './UserService';
 
 interface SettlementInput {
+  user: User;
+  userActivation: UserActivation;
   products: {
     id: number;
     quantity: number;
@@ -24,14 +26,15 @@ export interface SettlementResult {
     vipPrice: number;
     svipPrice: number;
   }[];
-  total: {
+  priceInfo: {
     price: number;
     memberPrice: number;
     vipPrice: number;
     svipPrice: number;
   };
-  itemsCount: number;
   deliveryFee: number;
+  quantity: number;
+  paymentPrice: number;
 }
 
 interface PaymentInput {
@@ -39,7 +42,7 @@ interface PaymentInput {
     orderResultURL?: string;
     clientBackURL?: string;
   };
-  price: number;
+  paymentPrice: number;
   data: SettlementInput;
   paymentParams: {
     // Note: 請帶20碼uid, ex: f0a0d7e9fae1bb72bc93
@@ -68,13 +71,73 @@ interface PaymentInput {
     loveCode: string;
   };
 }
-interface IOrderService {
+interface IPaymentService {
   payment(data: PaymentInput): Promise<string | null>;
   settlement(data: SettlementInput): Promise<SettlementResult | null>;
 }
 
-class OrderService implements IOrderService {
-  private readonly DEFAULT_DELIVERY_FEE: number = 60;
+class PaymentService implements IPaymentService {
+  private static readonly DEFAULT_DELIVERY_FEE: number = 60;
+
+  private static paymentPriceCalculate(data: {
+    memberLevel: MemberLevel;
+    priceInfo: {
+      price: number;
+      memberPrice: number;
+      vipPrice: number;
+      svipPrice: number;
+    };
+  }): number {
+    const {
+      memberLevel,
+      priceInfo: { price, memberPrice, vipPrice, svipPrice },
+    } = data;
+    return memberLevel === 'NORMAL'
+      ? memberPrice
+      : memberLevel === 'VIP'
+      ? vipPrice
+      : memberLevel === 'SVIP'
+      ? svipPrice
+      : price;
+  }
+  private static paymentTotalInfoCalculate(data: {
+    items: ProductsItemization[];
+  }): {
+    priceInfo: {
+      price: number;
+      memberPrice: number;
+      vipPrice: number;
+      svipPrice: number;
+    };
+    quantity: number;
+  } {
+    return data.items.reduce(
+      (result, item) => ({
+        ...result,
+        quantity: result.quantity + item.quantity,
+        priceInfo: {
+          price: result.priceInfo.price + item.price * item.quantity,
+          memberPrice:
+            result.priceInfo.memberPrice + item.memberPrice * item.quantity,
+          vipPrice: result.priceInfo.vipPrice + item.vipPrice * item.quantity,
+          svipPrice:
+            result.priceInfo.svipPrice + item.svipPrice * item.quantity,
+        },
+      }),
+      {
+        quantity: 0,
+        priceInfo: {
+          price: 0,
+          memberPrice: 0,
+          vipPrice: 0,
+          svipPrice: 0,
+        },
+      },
+    );
+  }
+  private static paymentDeliveryFeeCalculate(): number {
+    return PaymentService.DEFAULT_DELIVERY_FEE;
+  }
   async payment(data: PaymentInput): Promise<string | null> {
     const settlementResult = await this.settlement(data.data);
     if (!settlementResult) {
@@ -84,7 +147,7 @@ class OrderService implements IOrderService {
     const base_param = {
       MerchantTradeNo: data.paymentParams.merchantTradeNo, //請帶20碼uid, ex: f0a0d7e9fae1bb72bc93
       MerchantTradeDate, //ex: 2017/02/13 15:45:30
-      TotalAmount: data.price.toString(),
+      TotalAmount: data.paymentPrice.toString(),
       TradeDesc: data.paymentParams.tradeDesc,
       ReturnURL: ecpayBaseOptions.returnURL,
       ItemName: settlementResult.items.map((item) => item.name).join('#'),
@@ -157,7 +220,7 @@ class OrderService implements IOrderService {
       InvType: '07',
       ...InvoiceItem,
     };
-    const create = new ecpay_payment(ecpayOptions);
+    const create = new EcpayPayment(ecpayOptions);
     const html = create.payment_client.aio_check_out_credit_onetime(
       base_param,
       inv_params,
@@ -166,73 +229,39 @@ class OrderService implements IOrderService {
     return String(html);
   }
   async settlement(data: SettlementInput): Promise<SettlementResult | null> {
-    const products = await ProductService.getProductsByIds({
-      ids: data.products.map((product) => product.id),
+    // Note: （會員系統）用戶資料、用戶紅利資料
+    const memberLevel = userService.getUserMemberLevel({
+      activation: data.userActivation,
     });
-    const productsMap = new Map<Product['id'], PrismaProduct>();
-    const settlementItemsMap = new Map<
-      Product['id'],
-      SettlementResult['items'][0]
-    >();
-    products.forEach((product) => {
-      productsMap.set(product.id, product);
-    });
-    let anyProductNotExists = false;
-    data.products.forEach((item) => {
-      const product = productsMap.get(item.id);
-      const settlementItem = settlementItemsMap.get(item.id);
-      if (product) {
-        if (!settlementItem) {
-          settlementItemsMap.set(product.id, {
-            productId: product.id,
-            productSkuId: product.skuId,
-            name: product.name,
-            quantity: item.quantity,
-            price: item.quantity * product.price,
-            memberPrice: item.quantity * product.memberPrice,
-            vipPrice: item.quantity * product.vipPrice,
-            svipPrice: item.quantity * product.svipPrice,
-          });
-        } else {
-          settlementItemsMap.set(product.id, {
-            ...settlementItem,
-            quantity: settlementItem.quantity + item.quantity,
-            price: settlementItem.price + item.quantity * product.price,
-            memberPrice:
-              settlementItem.memberPrice + item.quantity * product.memberPrice,
-            vipPrice:
-              settlementItem.vipPrice + item.quantity * product.vipPrice,
-            svipPrice:
-              settlementItem.svipPrice + item.quantity * product.svipPrice,
-          });
-        }
-      } else {
-        anyProductNotExists = true;
-      }
-    });
-    const items = Array.from(settlementItemsMap.values());
 
+    // Note: (商品系統)
+    const { items, anyProductNotExists } =
+      await ProductService.productsItemization(data.products);
+    if (anyProductNotExists) {
+      return null;
+    }
+
+    // Note: (促銷系統）優惠資訊
+    // TODO: 平台優惠、身份優惠、產品優惠
+
+    // Note: （支付系統）價格計算
+    // TODO: 價格計算
+    const deliveryFee = PaymentService.paymentDeliveryFeeCalculate();
+    const { priceInfo, quantity } = PaymentService.paymentTotalInfoCalculate({
+      items,
+    });
+    const paymentPrice = PaymentService.paymentPriceCalculate({
+      memberLevel,
+      priceInfo,
+    });
     const settleResult: SettlementResult = {
       items: items,
-      itemsCount: 0,
-      deliveryFee: this.DEFAULT_DELIVERY_FEE,
-      total: {
-        price: 0,
-        memberPrice: 0,
-        vipPrice: 0,
-        svipPrice: 0,
-      },
+      quantity,
+      deliveryFee,
+      priceInfo,
+      paymentPrice,
     };
-
-    const result = items.reduce<SettlementResult>((result, item) => {
-      result.itemsCount += item.quantity;
-      result.total.price += item.price * item.quantity;
-      result.total.memberPrice += item.memberPrice * item.quantity;
-      result.total.vipPrice += item.vipPrice * item.quantity;
-      result.total.svipPrice += item.svipPrice * item.quantity;
-      return result;
-    }, settleResult);
-
+    // Note: 將運費紀為一筆 item
     if (settleResult.deliveryFee > 0) {
       settleResult.items.push({
         productId: null,
@@ -244,15 +273,19 @@ class OrderService implements IOrderService {
         svipPrice: settleResult.deliveryFee,
         quantity: 1,
       });
-      settleResult.itemsCount += 1;
-      settleResult.total.price += settleResult.deliveryFee;
-      settleResult.total.memberPrice += settleResult.deliveryFee;
-      settleResult.total.vipPrice += settleResult.deliveryFee;
-      settleResult.total.svipPrice += settleResult.deliveryFee;
+      settleResult.quantity += 1;
+      settleResult.priceInfo.price += settleResult.deliveryFee;
+      settleResult.priceInfo.memberPrice += settleResult.deliveryFee;
+      settleResult.priceInfo.vipPrice += settleResult.deliveryFee;
+      settleResult.priceInfo.svipPrice += settleResult.deliveryFee;
     }
 
-    return anyProductNotExists ? null : result;
+    // Note: （倉儲系統）庫存檢查、運費計算、庫存調整
+    // TODO: 庫存檢查、運費計算、庫存調整
+
+    // Note: 回傳結算結果
+    return settleResult;
   }
 }
 
-export default new OrderService();
+export default new PaymentService();

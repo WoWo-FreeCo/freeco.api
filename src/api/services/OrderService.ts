@@ -11,7 +11,7 @@ export interface Timeslot {
 }
 interface CreateOrderInput {
   userId: string;
-  price: number;
+  paymentPrice: number;
   attribute: ProductAttribute;
   consignee: {
     deliveryType: 'HOME' | 'STORE';
@@ -108,7 +108,7 @@ class OrderService implements IOrderService {
         merchantTradeNo,
         relateNumber,
         orderStatus: 'WAIT_PAYMENT',
-        price: data.price,
+        price: data.paymentPrice,
         attribute: data.attribute,
         consignee: {
           create: {

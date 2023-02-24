@@ -11,7 +11,6 @@ import {
 import httpStatus from 'http-status';
 import Logger from '../../utils/logger';
 import UserService from '../services/UserService';
-import userService from '../services/UserService';
 import PaymentService, { SettlementResult } from '../services/PaymentService';
 import OrderService, { Timeslot } from '../services/OrderService';
 import config from 'config';
@@ -153,12 +152,12 @@ class PaymentController {
         res.sendStatus(httpStatus.NOT_FOUND);
         return;
       }
-      const memberLevel = userService.getUserMemberLevel({
-        activation: user.activation,
+
+      const settlementResult = await PaymentService.settlement({
+        user: user,
+        userActivation: user.activation,
+        products: paymentBody.products,
       });
-
-      const settlementResult = await PaymentService.settlement(paymentBody);
-
       if (!settlementResult) {
         res.status(httpStatus.BAD_REQUEST).json({
           message: 'One (or many) of product ids not exist.',
@@ -166,20 +165,10 @@ class PaymentController {
         return;
       }
 
-      // Note: Calculate the price of order
-      const price =
-        memberLevel === 'NORMAL'
-          ? settlementResult.total.memberPrice
-          : memberLevel === 'VIP'
-          ? settlementResult.total.vipPrice
-          : memberLevel === 'SVIP'
-          ? settlementResult.total.svipPrice
-          : settlementResult.total.price;
-
       // Note: Create an order
       const order = await OrderService.createOrder({
         userId: user.id,
-        price,
+        paymentPrice: settlementResult.paymentPrice,
         attribute: paymentBody.attribute,
         consignee: paymentBody.consignee,
         items: settlementResult.items.map((item) => ({
@@ -199,8 +188,10 @@ class PaymentController {
           orderResultURL,
           clientBackURL,
         },
-        price,
+        paymentPrice: settlementResult.paymentPrice,
         data: {
+          user: user,
+          userActivation: user.activation,
           products: paymentBody.products,
         },
         paymentParams: {
@@ -235,7 +226,17 @@ class PaymentController {
     }
 
     try {
+      const { id } = req.userdata;
+      // Note: Get user information and member level
+      const user = await UserService.getUserProfileById({ id });
+      if (!user || !user.activation) {
+        res.sendStatus(httpStatus.NOT_FOUND);
+        return;
+      }
+
       const result: Settlement | null = await PaymentService.settlement({
+        user,
+        userActivation: user.activation,
         ...settleBody,
       });
 
@@ -278,8 +279,9 @@ class PaymentController {
           if (orderDetail.orderStatus === OrderStatus.WAIT_PAYMENT) {
             await OrderService.settleOrder({ id: orderDetail.id });
           } else if (orderDetail.orderStatus === OrderStatus.CANCELLED) {
-            // TODO: (1) 綠界取消退款
-            // TODO: (2) 變更 orderStatus 為 REVOKED
+            // TODO:
+            //  (1) 綠界取消退款
+            //  (2) 變更 orderStatus 為 REVOKED
           } else {
             Logger.error(
               `Error: Order payment has been settled in advance. There might be potential bugs beneath.`,

@@ -24,7 +24,11 @@ interface Product {
   attribute: ProductAttribute;
 }
 class AdminProductController {
-  async getMany(req: Request, res: Response, next: NextFunction) {
+  async getMany(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     let getManyByCategoryIdQuery: GetManyByCategoryIdQuery;
     try {
       // Note: Check request query is valid
