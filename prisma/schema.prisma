@@ -93,23 +93,53 @@ enum DeliveryType {
 }
 
 model Order {
-  id              String           @id @db.VarChar(19)
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  userId          String           @db.VarChar(36)
-  merchantTradeNo String           @unique @db.VarChar(20)
-  relateNumber    String           @unique @db.VarChar(30)
+  id              String            @id @db.VarChar(19)
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId          String            @db.VarChar(36)
+  merchantTradeNo String            @unique @db.VarChar(20)
+  relateNumber    String            @unique @db.VarChar(30)
   orderStatus     OrderStatus
   consignee       OrderConsignee?
   orderItems      OrderItem[]
   price           Int
   attribute       ProductAttribute
-  createdAt       DateTime         @default(now()) @db.Timestamp(0)
-  updatedAt       DateTime         @updatedAt @db.Timestamp(0)
+  createdAt       DateTime          @default(now()) @db.Timestamp(0)
+  updatedAt       DateTime          @updatedAt @db.Timestamp(0)
+  invoiceInfo     OrderInvoiceInfo?
 
   @@index([merchantTradeNo])
   @@index([relateNumber])
   @@index([userId, orderStatus])
   @@index([orderStatus, createdAt])
+}
+
+model OrderInvoiceInfo {
+  order              Order   @relation(fields: [orderRelateNumber], references: [relateNumber], onDelete: Cascade, onUpdate: Cascade)
+  orderRelateNumber  String  @id @db.VarChar(30)
+  customerID         String? @db.VarChar(20)
+  customerIdentifier String? @db.VarChar(8)
+  customerName       String? @db.VarChar(20)
+  customerAddr       String? @db.VarChar(100)
+  customerPhone      String? @db.VarChar(15)
+  customerEmail      String? @db.VarChar(80)
+  clearanceMark      String? @db.VarChar(1)
+  print              String  @db.VarChar(1)
+  donation           String  @db.VarChar(1)
+  loveCode           String? @db.VarChar(7)
+  carruerType        String? @db.VarChar(1)
+  carruerNum         String? @db.VarChar(16)
+  taxType            String  @db.VarChar(1)
+  salesAmount        String
+  remark             String? @db.Text
+  itemName           String  @db.Text
+  itemCount          String  @db.Text
+  itemWord           String  @db.Text
+  itemPrice          String  @db.Text
+  itemTaxType        String? @db.Text
+  itemAmount         String  @db.Text
+  itemRemark         String  @db.Text
+  invType            String  @db.VarChar(2)
+  vat                String  @db.VarChar(1)
 }
 
 model OrderConsignee {
