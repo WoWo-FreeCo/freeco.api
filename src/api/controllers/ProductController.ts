@@ -21,6 +21,8 @@ interface Product {
   memberPrice: number;
   vipPrice: number;
   svipPrice: number;
+  skuId: string | null;
+  categoryId: number | null;
   attribute: ProductAttribute;
 }
 class AdminProductController {
@@ -53,6 +55,8 @@ class AdminProductController {
         vipPrice: product.vipPrice,
         svipPrice: product.svipPrice,
         attribute: product.attribute,
+        skuId: product.skuId,
+        categoryId: product.categoryId,
       }));
       res.status(httpStatus.OK).json({ data: responseData });
     } catch (err) {
