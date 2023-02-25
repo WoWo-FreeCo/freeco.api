@@ -80,7 +80,7 @@ export interface CreateData {
       item_ename?: string;
       // Note: 商品名称
       item_name: string;
-      // Note: 商品单价
+      // Note: 商品单价 (此數量以0.01為最小單位，若要輸入整數，傳入時需乘以100)
       item_price: number;
       // Note: 商品数量
       quantity: number;

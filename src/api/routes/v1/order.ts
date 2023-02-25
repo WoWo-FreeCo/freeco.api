@@ -7,5 +7,6 @@ const OrderRoute: Router = Router();
 OrderRoute.use(AuthMiddleware.authenticate('user'));
 OrderRoute.get('', OrderController.getMany)
   .get('/:id/detail', OrderController.getDetail)
-  .post('/:id/cancel', OrderController.cancel);
+  .post('/:id/cancel', OrderController.cancel)
+  .get('/:id/logistics/detail', OrderController.getLogisticsDetail);
 export default OrderRoute;

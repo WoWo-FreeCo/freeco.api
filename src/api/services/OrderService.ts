@@ -11,7 +11,7 @@ export interface Timeslot {
 }
 interface CreateOrderInput {
   userId: string;
-  price: number;
+  paymentPrice: number;
   attribute: ProductAttribute;
   consignee: {
     deliveryType: 'HOME' | 'STORE';
@@ -108,7 +108,7 @@ class OrderService implements IOrderService {
         merchantTradeNo,
         relateNumber,
         orderStatus: 'WAIT_PAYMENT',
-        price: data.price,
+        price: data.paymentPrice,
         attribute: data.attribute,
         consignee: {
           create: {
@@ -290,11 +290,11 @@ class OrderService implements IOrderService {
           .map((item) => ({
             item_code: item.productSkuId?.toString() || 'ERROR_SKU_ID',
             item_name: item.name,
-            item_price: item.price,
+            item_price: item.price * 100,
             quantity: item.quantity,
           })),
       },
-      timestamp: '0',
+      timestamp: Date.now().toString(),
     });
   }
 }

@@ -68,6 +68,7 @@ class OneWarehouseClient {
 `,
       {
         ...data,
+
         app_id: data.app_id || this._params.appId,
         version: data.version || this._params.version,
       },

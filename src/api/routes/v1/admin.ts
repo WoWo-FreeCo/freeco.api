@@ -49,7 +49,8 @@ adminCheckContentRouter
 const adminOrderRouter: Router = Router();
 adminOrderRouter
   .get('', OrderController.getMany)
-  .get('/:id/detail', OrderController.getDetail);
+  .get('/:id/detail', OrderController.getDetail)
+  .get('/:id/logistics/detail', OrderController.getLogisticsDetail);
 
 const adminRoute: Router = Router();
 adminRoute
