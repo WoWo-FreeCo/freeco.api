@@ -3,5 +3,6 @@ import WebPageController from '../../controllers/WebPageController';
 
 const webPageRoute: Router = Router();
 
+webPageRoute.route('').get(WebPageController.getAll);
 webPageRoute.route('/:id').get(WebPageController.get);
 export default webPageRoute;
