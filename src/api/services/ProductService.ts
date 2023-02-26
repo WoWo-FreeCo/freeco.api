@@ -51,6 +51,7 @@ interface ProductsItemizationResult {
 
 interface ProductWithImage {
   id: number;
+  skuId: string | null;
   name: string;
   price: number;
   memberPrice: number;
