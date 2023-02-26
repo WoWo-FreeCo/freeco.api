@@ -75,22 +75,22 @@ const consigneeSchema: ObjectSchema<Consignee> = object({
 });
 
 interface InvoiceParams {
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
-  customerAddr: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  customerAddr?: string;
   customerIdentifier?: string;
-  carruerType: '' | '1' | '2' | '3';
-  carruerNum: string;
+  carruerType?: '' | '1' | '2' | '3';
+  carruerNum?: string;
   donation: '0' | '1';
-  loveCode: string;
+  loveCode?: string;
 }
 
 const invoiceParamsSchema: ObjectSchema<InvoiceParams> = object({
-  customerName: string().required(),
-  customerEmail: string().email().required(),
-  customerPhone: string().required(),
-  customerAddr: string().required(),
+  customerName: string().optional(),
+  customerEmail: string().email().optional(),
+  customerPhone: string().optional(),
+  customerAddr: string().optional(),
   customerIdentifier: string().length(8).optional(),
   carruerType: string().oneOf(['', '1', '2', '3']).ensure(),
   carruerNum: string().default('').optional(),
@@ -153,6 +153,7 @@ class PaymentController {
         return;
       }
 
+      // Note: Init settlement result
       const settlementResult = await PaymentService.settlement({
         user: user,
         userActivation: user.activation,
@@ -171,39 +172,46 @@ class PaymentController {
         paymentPrice: settlementResult.paymentPrice,
         attribute: paymentBody.attribute,
         consignee: paymentBody.consignee,
-        items: settlementResult.items.map((item) => ({
-          productId: item.productId,
-          productSkuId: item.productSkuId,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-        })),
+        items: settlementResult.items,
+        invoiceInfo: {
+          customerID: '',
+          customerIdentifier: paymentBody.invoiceParams.customerIdentifier,
+          customerName: paymentBody.invoiceParams.customerName,
+          customerAddr: paymentBody.invoiceParams.customerAddr,
+          customerPhone: paymentBody.invoiceParams.customerPhone,
+          customerEmail: paymentBody.invoiceParams.customerEmail,
+          print: '1',
+          donation: paymentBody.invoiceParams.donation,
+          loveCode: paymentBody.invoiceParams.loveCode,
+          carruerType: paymentBody.invoiceParams.carruerType,
+          carruerNum: paymentBody.invoiceParams.carruerNum,
+          taxType: '1',
+          remark: '',
+          invType: '07',
+          vat: '1',
+        },
       });
 
-      // Note: Make a payment
-      const orderResultURL = req.query['order_result_url'] as string;
-      const clientBackURL = req.query['client_back_url'] as string;
+      // Note: Make a payment from the order just created before
       const paymentFormHtml = await PaymentService.payment({
+        orderId: order.id,
         params: {
-          orderResultURL,
-          clientBackURL,
-        },
-        paymentPrice: settlementResult.paymentPrice,
-        data: {
-          user: user,
-          userActivation: user.activation,
-          products: paymentBody.products,
+          orderResultURL: req.query['order_result_url'] as string,
+          clientBackURL: req.query['client_back_url'] as string,
         },
         paymentParams: {
-          merchantTradeNo: order.merchantTradeNo,
           choosePayment: 'Credit',
-          tradeDesc: 'This is trade description',
-        },
-        invoiceParams: {
-          relateNumber: order.relateNumber,
-          ...paymentBody.invoiceParams,
+          tradeDesc: 'tradeDesc',
         },
       });
+
+      if (paymentFormHtml === null) {
+        // TODO: 金流失敗，若訂單成功被創建，此時需要從資料庫刪除訂單
+        res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+          message: 'Payment is not created successfully.',
+        });
+        return;
+      }
 
       res.status(httpStatus.OK).send(paymentFormHtml);
     } catch (err) {
@@ -266,9 +274,12 @@ class PaymentController {
         const orderDetail = await OrderService.getOrderDetailByMerchantTradeNo({
           merchantTradeNo: req.body.MerchantTradeNo,
         });
-        if (orderDetail && orderDetail.consignee) {
+        if (orderDetail && orderDetail.consignee && orderDetail.invoiceInfo) {
           switch (orderDetail.attribute) {
             case 'GENERAL':
+              await PaymentService.issueInvoice({
+                invoiceInfo: orderDetail.invoiceInfo,
+              });
               await OrderService.createOutboundOrder({
                 order: orderDetail,
                 consignee: orderDetail.consignee,

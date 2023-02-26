@@ -1,12 +1,14 @@
 import ProductService, { ProductsItemization } from './ProductService';
-import { User, UserActivation } from '@prisma/client';
+import { OrderInvoiceInfo, User, UserActivation } from '@prisma/client';
 import moment from 'moment/moment';
 import ecpayOptions from '../../utils/ecpay/conf';
 import EcpayPayment from 'ecpay_aio_nodejs/lib/ecpay_payment';
+import EcpayInvoice from 'ecpay_invoice_nodejs/lib/ecpay_invoice';
 import ecpayBaseOptions from '../../utils/ecpay/conf/baseOptions';
 import userService, { MemberLevel } from './UserService';
+import prisma from '../../database/client/prisma';
 
-interface SettlementInput {
+export interface SettlementInput {
   user: User;
   userActivation: UserActivation;
   products: {
@@ -14,7 +16,70 @@ interface SettlementInput {
     quantity: number;
   }[];
 }
-
+interface PaymentInput {
+  orderId: string;
+  params?: {
+    orderResultURL?: string;
+    clientBackURL?: string;
+  };
+  paymentParams: {
+    choosePayment: 'Credit';
+    tradeDesc: string;
+  };
+}
+interface IssueInvoiceInput {
+  // // Note: 請帶30碼uid ex: SJDFJGH24FJIL97G73653XM0VOMS4K
+  // relateNumber: string;
+  // // Note: 客戶代號，長度為20字元
+  // customerID: string;
+  // // Note: 統一編號，長度為8字元
+  // customerIdentifier: string;
+  // // Note: 客戶名稱，長度為20字元
+  // customerName: string;
+  // // Note: 客戶地址，長度為100字元
+  // customerAddr: string;
+  // // Note: 客戶電話，長度為20字元
+  // customerPhone: string;
+  // // Note: 客戶信箱，長度為80字元
+  // customerEmail: string;
+  // // Note: 通關方式，僅可帶入'1'、'2'、''
+  // clearanceMark: string;
+  // // Note: 列印註記，僅可帶入'0'、'1'
+  // print: string;
+  // // Note: 捐贈註記，僅可帶入'1'、'0'
+  // donation: string;
+  // // Note: 愛心碼，長度為7字元
+  // loveCode: string;
+  // // Note: 載具類別，僅可帶入'1'、'2'、'3'、''
+  // carruerType: string;
+  // // Note: 載具編號，當載具類別為'2'時，長度為16字元，當載具類別為'3'時，長度為7字元
+  // carruerNum: string;
+  // // Note: 課稅類別，僅可帶入'1'、'2'、'3'、'9'
+  // taxType: string;
+  // // Note: 發票金額
+  // salesAmount: string;
+  // // Note: 備註
+  // invoiceRemark: string;
+  // // Note: 商品名稱，如果超過一樣商品時請以｜(為半形不可使用全形)分隔
+  // itemName: string;
+  // // Note: 商品數量，如果超過一樣商品時請以｜(為半形不可使用全形)分隔
+  // itemCount: string;
+  // // Note: 商品單位，如果超過一樣商品時請以｜(為半形不可使用全形)分隔
+  // itemWord: string;
+  // // Note: 商品價格，如果超過一樣商品時請以｜(為半形不可使用全形)分隔
+  // itemPrice: string;
+  // // Note: 商品課稅別，如果超過一樣商品時請以｜(為半形不可使用全形)分隔，如果TaxType為9請帶值，其餘為空
+  // itemTaxType: string;
+  // // Note: 商品合計，如果超過一樣商品時請以｜(為半形不可使用全形)分隔
+  // itemAmount: string;
+  // // Note: 商品備註，如果超過一樣商品時請以｜(為半形不可使用全形)分隔
+  // itemRemark: string;
+  // // Note: 字軌類別，、'07'一般稅額
+  // invType: string;
+  // // Note: 商品單價是否含稅，'1'為含稅價'、'2'為未稅價
+  // vat: string;
+  invoiceInfo: OrderInvoiceInfo;
+}
 export interface SettlementResult {
   items: {
     productId: number | null;
@@ -25,6 +90,8 @@ export interface SettlementResult {
     memberPrice: number;
     vipPrice: number;
     svipPrice: number;
+    // Note: 最終付款金額
+    paymentPrice: number;
   }[];
   priceInfo: {
     price: number;
@@ -36,47 +103,51 @@ export interface SettlementResult {
   quantity: number;
   paymentPrice: number;
 }
-
-interface PaymentInput {
-  params?: {
-    orderResultURL?: string;
-    clientBackURL?: string;
-  };
+export interface ItemPayment {
+  productId: number | null;
+  productSkuId: string | null;
+  name: string;
+  quantity: number;
   paymentPrice: number;
-  data: SettlementInput;
-  paymentParams: {
-    // Note: 請帶20碼uid, ex: f0a0d7e9fae1bb72bc93
-    merchantTradeNo: string;
-    choosePayment: 'Credit';
-    tradeDesc: string;
-  };
-  invoiceParams: {
-    //Note: 請帶30碼uid ex: SJDFJGH24FJIL97G73653XM0VOMS4K
-    relateNumber: string;
-    // Note: 統一編號 固定 8 位長度數字
-    customerIdentifier?: string;
-    customerName: string;
-    customerAddr: string;
-    customerPhone: string;
-    customerEmail: string;
-    // Note:
-    // 當 `carruerType` 為 ""(無載具) 或 "1"(會員載具), `carruerNum`為空字串
-    // 當 `carruerType` 為 "2"(自然人憑證), `carruerNum`格式:長度16,前2碼為大小寫字母,後14碼為數字
-    // 當 `carruerType` 為 "3"(手機條碼), `carruerNum`格式:長度8,前1碼為'/',後7碼為數字或大小寫字母
-    carruerType: '' | '1' | '2' | '3';
-    carruerNum: string;
-    // Note: 是否捐揍發票: 不捐贈: 0; 捐贈:1
-    donation: '0' | '1';
-    // Note: 受捐贈愛心碼
-    loveCode: string;
-  };
 }
 interface IPaymentService {
   payment(data: PaymentInput): Promise<string | null>;
   settlement(data: SettlementInput): Promise<SettlementResult | null>;
+  issueInvoice(data: IssueInvoiceInput): Promise<void>;
 }
 
 class PaymentService implements IPaymentService {
+  async issueInvoice(data: IssueInvoiceInput): Promise<void> {
+    const create = new EcpayInvoice();
+    const response = await create.invoice_client.ecpay_invoice_issue({
+      RelateNumber: data.invoiceInfo.orderRelateNumber,
+      CustomerID: data.invoiceInfo.customerID || '',
+      CustomerIdentifier: data.invoiceInfo.customerIdentifier || '',
+      CustomerName: data.invoiceInfo.customerName || '',
+      CustomerAddr: data.invoiceInfo.customerAddr || '',
+      CustomerPhone: data.invoiceInfo.customerPhone || '',
+      CustomerEmail: data.invoiceInfo.customerEmail || '',
+      ClearanceMark: data.invoiceInfo.clearanceMark || '',
+      Print: data.invoiceInfo.print,
+      Donation: data.invoiceInfo.donation,
+      LoveCode: data.invoiceInfo.loveCode || '',
+      CarruerType: data.invoiceInfo.carruerType || '',
+      CarruerNum: data.invoiceInfo.carruerNum || '',
+      TaxType: data.invoiceInfo.taxType,
+      SalesAmount: data.invoiceInfo.salesAmount,
+      InvoiceRemark: data.invoiceInfo.remark || '',
+      ItemName: data.invoiceInfo.itemName,
+      ItemCount: data.invoiceInfo.itemCount,
+      ItemWord: data.invoiceInfo.itemWord,
+      ItemPrice: data.invoiceInfo.itemPrice,
+      ItemTaxType: data.invoiceInfo.itemTaxType || '',
+      ItemAmount: data.invoiceInfo.itemAmount,
+      ItemRemark: data.invoiceInfo.itemRemark,
+      InvType: data.invoiceInfo.invType,
+      vat: data.invoiceInfo.vat,
+    });
+    console.log(response);
+  }
   private static readonly DEFAULT_DELIVERY_FEE: number = 60;
 
   private static paymentPriceCalculate(data: {
@@ -101,7 +172,7 @@ class PaymentService implements IPaymentService {
       : price;
   }
   private static paymentTotalInfoCalculate(data: {
-    items: ProductsItemization[];
+    itemizationList: ProductsItemization[];
   }): {
     priceInfo: {
       price: number;
@@ -111,7 +182,7 @@ class PaymentService implements IPaymentService {
     };
     quantity: number;
   } {
-    return data.items.reduce(
+    return data.itemizationList.reduce(
       (result, item) => ({
         ...result,
         quantity: result.quantity + item.quantity,
@@ -139,18 +210,27 @@ class PaymentService implements IPaymentService {
     return PaymentService.DEFAULT_DELIVERY_FEE;
   }
   async payment(data: PaymentInput): Promise<string | null> {
-    const settlementResult = await this.settlement(data.data);
-    if (!settlementResult) {
+    const order = await prisma.order.findFirst({
+      where: {
+        id: data.orderId,
+      },
+      include: {
+        invoiceInfo: true,
+        orderItems: true,
+      },
+    });
+    if (!order || !order.invoiceInfo) {
       return null;
     }
     const MerchantTradeDate = moment().format('YYYY/MM/DD HH:mm:ss');
+    const orderItems = order.orderItems;
     const base_param = {
-      MerchantTradeNo: data.paymentParams.merchantTradeNo, //請帶20碼uid, ex: f0a0d7e9fae1bb72bc93
-      MerchantTradeDate, //ex: 2017/02/13 15:45:30
-      TotalAmount: data.paymentPrice.toString(),
+      MerchantTradeNo: order.merchantTradeNo,
+      MerchantTradeDate,
+      TotalAmount: order.price.toString(),
       TradeDesc: data.paymentParams.tradeDesc,
+      ItemName: orderItems.map((item) => item.name).join('#'),
       ReturnURL: ecpayBaseOptions.returnURL,
-      ItemName: settlementResult.items.map((item) => item.name).join('#'),
       OrderResultURL: data.params?.orderResultURL
         ? data.params.orderResultURL
         : ecpayBaseOptions.orderResultURL,
@@ -168,28 +248,27 @@ class PaymentService implements IPaymentService {
       // CustomField3: '',
       // CustomField4: ''
     };
-    const InvoiceItem = settlementResult.items.reduce(
-      (invoiceItem, item) => ({
+    const invoiceItem = orderItems.reduce(
+      (result, item) => ({
+        ...result,
         InvoiceItemName:
-          invoiceItem.InvoiceItemName === ''
+          result.InvoiceItemName === ''
             ? item.name
-            : invoiceItem.InvoiceItemName + `|${item.name}`,
+            : result.InvoiceItemName + `|${item.name}`,
         InvoiceItemCount:
-          invoiceItem.InvoiceItemCount === ''
+          result.InvoiceItemCount === ''
             ? item.quantity
-            : invoiceItem.InvoiceItemCount + `|${item.quantity}`,
+            : result.InvoiceItemCount + `|${item.quantity}`,
         InvoiceItemWord:
-          invoiceItem.InvoiceItemWord === ''
-            ? `個`
-            : invoiceItem.InvoiceItemWord + `|個`,
+          result.InvoiceItemWord === '' ? `個` : result.InvoiceItemWord + `|個`,
         InvoiceItemPrice:
-          invoiceItem.InvoiceItemPrice === ''
+          result.InvoiceItemPrice === ''
             ? item.price
-            : invoiceItem.InvoiceItemPrice + `|${item.price}`,
+            : result.InvoiceItemPrice + `|${item.price}`,
         InvoiceItemTaxType:
-          invoiceItem.InvoiceItemTaxType === ''
+          result.InvoiceItemTaxType === ''
             ? '1'
-            : invoiceItem.InvoiceItemTaxType + '|1',
+            : result.InvoiceItemTaxType + '|1',
       }),
       {
         InvoiceItemName: '',
@@ -199,26 +278,26 @@ class PaymentService implements IPaymentService {
         InvoiceItemTaxType: '',
       },
     );
-    // 若要測試開立電子發票，請將inv_params內的"所有"參數取消註解 //
+    const orderInvoiceInfo = order.invoiceInfo;
     const inv_params = {
-      RelateNumber: data.invoiceParams.relateNumber, //請帶30碼uid ex: SJDFJGH24FJIL97G73653XM0VOMS4K
-      CustomerID: '', //會員編號
-      CustomerIdentifier: data.invoiceParams.customerIdentifier,
-      CustomerName: data.invoiceParams.customerName,
-      CustomerAddr: data.invoiceParams.customerAddr,
-      CustomerPhone: data.invoiceParams.customerPhone,
-      CustomerEmail: data.invoiceParams.customerEmail,
-      ClearanceMark: '2',
-      TaxType: '1',
-      CarruerType: data.invoiceParams.carruerType,
-      CarruerNum: data.invoiceParams.carruerNum,
-      Donation: data.invoiceParams.donation,
-      LoveCode: data.invoiceParams.loveCode,
-      Print: '1',
-      InvoiceRemark: '測試商品1的說明|測試商品2的說明',
+      RelateNumber: order.relateNumber,
+      CustomerID: orderInvoiceInfo.customerID || '',
+      CustomerIdentifier: orderInvoiceInfo.customerIdentifier || '',
+      CustomerName: orderInvoiceInfo.customerName || '',
+      CustomerAddr: orderInvoiceInfo.customerAddr || '',
+      CustomerPhone: orderInvoiceInfo.customerPhone || '',
+      CustomerEmail: orderInvoiceInfo.customerEmail || '',
+      Print: orderInvoiceInfo.print,
+      Donation: orderInvoiceInfo.donation,
+      LoveCode: orderInvoiceInfo.loveCode || '',
+      CarruerType: orderInvoiceInfo.carruerType || '',
+      CarruerNum: orderInvoiceInfo.carruerNum || '',
+      TaxType: orderInvoiceInfo.taxType,
+      InvoiceRemark: orderInvoiceInfo.remark || '',
+      InvType: orderInvoiceInfo.invType,
+      ClearanceMark: orderInvoiceInfo.clearanceMark || '',
       DelayDay: '0',
-      InvType: '07',
-      ...InvoiceItem,
+      ...invoiceItem,
     };
     const create = new EcpayPayment(ecpayOptions);
     const html = create.payment_client.aio_check_out_credit_onetime(
@@ -235,7 +314,7 @@ class PaymentService implements IPaymentService {
     });
 
     // Note: (商品系統)
-    const { items, anyProductNotExists } =
+    const { itemizationList, anyProductNotExists } =
       await ProductService.productsItemization(data.products);
     if (anyProductNotExists) {
       return null;
@@ -248,12 +327,23 @@ class PaymentService implements IPaymentService {
     // TODO: 價格計算
     const deliveryFee = PaymentService.paymentDeliveryFeeCalculate();
     const { priceInfo, quantity } = PaymentService.paymentTotalInfoCalculate({
-      items,
+      itemizationList,
     });
     const paymentPrice = PaymentService.paymentPriceCalculate({
       memberLevel,
       priceInfo,
     });
+    const items = itemizationList.map((item) => ({
+      ...item,
+      paymentPrice:
+        memberLevel === 'NORMAL'
+          ? item.memberPrice
+          : memberLevel === 'VIP'
+          ? item.vipPrice
+          : memberLevel === 'SVIP'
+          ? item.svipPrice
+          : item.price,
+    }));
     const settleResult: SettlementResult = {
       items: items,
       quantity,
@@ -261,6 +351,7 @@ class PaymentService implements IPaymentService {
       priceInfo,
       paymentPrice,
     };
+
     // Note: 將運費紀為一筆 item
     if (settleResult.deliveryFee > 0) {
       settleResult.items.push({
@@ -271,6 +362,7 @@ class PaymentService implements IPaymentService {
         memberPrice: settleResult.deliveryFee,
         vipPrice: settleResult.deliveryFee,
         svipPrice: settleResult.deliveryFee,
+        paymentPrice: settleResult.deliveryFee,
         quantity: 1,
       });
       settleResult.quantity += 1;
@@ -278,6 +370,7 @@ class PaymentService implements IPaymentService {
       settleResult.priceInfo.memberPrice += settleResult.deliveryFee;
       settleResult.priceInfo.vipPrice += settleResult.deliveryFee;
       settleResult.priceInfo.svipPrice += settleResult.deliveryFee;
+      settleResult.paymentPrice += settleResult.deliveryFee;
     }
 
     // Note: （倉儲系統）庫存檢查、運費計算、庫存調整

@@ -1,10 +1,17 @@
 import prisma from '../../database/client/prisma';
 import snowflakeId from '../../utils/snowflake-id';
-import { Order, OrderConsignee, OrderItem, OrderStatus } from '@prisma/client';
+import {
+  Order,
+  OrderConsignee,
+  OrderInvoiceInfo,
+  OrderItem,
+  OrderStatus,
+} from '@prisma/client';
 import OneWarehouseClient from '../../utils/one-warehouse/client';
 import { WarehouseExpressCode } from '../../utils/one-warehouse/client/type/data';
 import { ProductAttribute } from '.prisma/client';
 import { Pagination } from '../../utils/helper/pagination';
+import { ItemPayment } from './PaymentService';
 export interface Timeslot {
   date: Date;
   slot: string;
@@ -32,13 +39,34 @@ interface CreateOrderInput {
     zipCode?: string;
     senderRemark?: string;
   };
-  items: {
-    productId: number | null;
-    productSkuId: string | null;
-    name: string;
-    price: number;
-    quantity: number;
-  }[];
+  invoiceInfo: {
+    customerID?: string;
+    // Note: 統一編號 固定 8 位長度數字
+    customerIdentifier?: string;
+    customerName?: string;
+    customerAddr?: string;
+    customerPhone?: string;
+    customerEmail?: string;
+    clearanceMark?: '' | '1' | '2';
+    print: '0' | '1';
+    // Note: 是否捐揍發票: 不捐贈: 0; 捐贈:1
+    donation: '0' | '1';
+    // Note: 受捐贈愛心碼
+    loveCode?: string;
+    // Note:
+    // 當 `carruerType` 為 ""(無載具) 或 "1"(會員載具), `carruerNum`為空字串
+    // 當 `carruerType` 為 "2"(自然人憑證), `carruerNum`格式:長度16,前2碼為大小寫字母,後14碼為數字
+    // 當 `carruerType` 為 "3"(手機條碼), `carruerNum`格式:長度8,前1碼為'/',後7碼為數字或大小寫字母
+    carruerType?: '' | '1' | '2' | '3';
+    carruerNum?: string;
+    taxType: '1' | '2' | '3' | '9';
+    remark?: string;
+    // Note: 字軌類別，、'07'一般稅額
+    invType: '07';
+    // Note: 商品單價是否含稅，'1'為含稅價'、'2'為未稅價
+    vat: '1';
+  };
+  items: ItemPayment[];
 }
 
 interface GetOrdersInput {
@@ -101,6 +129,37 @@ class OrderService implements IOrderService {
     const orderId = snowflakeId.generateOrderId();
     const merchantTradeNo = snowflakeId.generateMerchantTradeNo();
     const relateNumber = snowflakeId.generateRelateNumber();
+    const invoiceItem = data.items.reduce(
+      (result, item) => ({
+        ...result,
+        itemName:
+          result.itemName === ''
+            ? item.name
+            : result.itemName + `|${item.name}`,
+        itemCount:
+          result.itemCount === ''
+            ? item.quantity.toString()
+            : result.itemCount + `|${item.quantity}`,
+        itemWord: result.itemWord === '' ? `個` : result.itemWord + `|個`,
+        itemPrice:
+          result.itemPrice === ''
+            ? item.paymentPrice.toString()
+            : result.itemPrice + `|${item.paymentPrice}`,
+        itemAmount:
+          result.itemAmount === ''
+            ? item.paymentPrice.toString()
+            : result.itemAmount + `|${item.paymentPrice * item.quantity}`,
+      }),
+      {
+        itemName: '',
+        itemCount: '',
+        itemWord: '',
+        itemPrice: '',
+        itemTaxType: '',
+        itemAmount: '',
+        itemRemark: '',
+      },
+    );
     return prisma.order.create({
       data: {
         userId: data.userId,
@@ -138,7 +197,34 @@ class OrderService implements IOrderService {
         },
         orderItems: {
           createMany: {
-            data: data.items,
+            data: data.items.map((i) => ({
+              name: i.name,
+              productId: i.productId,
+              productSkuId: i.productSkuId,
+              quantity: i.quantity,
+              price: i.paymentPrice,
+            })),
+          },
+        },
+        invoiceInfo: {
+          create: {
+            customerID: data.invoiceInfo.customerID,
+            customerIdentifier: data.invoiceInfo.customerIdentifier,
+            customerName: data.invoiceInfo.customerName,
+            customerAddr: data.invoiceInfo.customerAddr,
+            customerPhone: data.invoiceInfo.customerPhone,
+            customerEmail: data.invoiceInfo.customerEmail,
+            print: data.invoiceInfo.print,
+            donation: data.invoiceInfo.donation,
+            loveCode: data.invoiceInfo.loveCode,
+            carruerType: data.invoiceInfo.carruerType,
+            carruerNum: data.invoiceInfo.carruerNum,
+            taxType: data.invoiceInfo.taxType,
+            remark: data.invoiceInfo.remark,
+            invType: '07',
+            salesAmount: data.paymentPrice.toString(),
+            vat: data.invoiceInfo.vat,
+            ...invoiceItem,
           },
         },
       },
@@ -235,7 +321,11 @@ class OrderService implements IOrderService {
   async getOrderDetailByMerchantTradeNo(data: {
     merchantTradeNo: string;
   }): Promise<
-    | (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })
+    | (Order & {
+        consignee: OrderConsignee | null;
+        orderItems: OrderItem[];
+        invoiceInfo: OrderInvoiceInfo | null;
+      })
     | null
   > {
     return prisma.order.findFirst({
@@ -245,6 +335,7 @@ class OrderService implements IOrderService {
       include: {
         consignee: true,
         orderItems: true,
+        invoiceInfo: true,
       },
     });
   }

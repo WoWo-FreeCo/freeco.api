@@ -1,7 +1,6 @@
 import prisma from '../../database/client/prisma';
 import { Product } from '@prisma/client';
 import { Product as PrismaProduct, ProductAttribute } from '.prisma/client';
-import { SettlementResult } from './PaymentService';
 
 interface CreateProductInput {
   categoryId?: number;
@@ -45,7 +44,7 @@ export interface ProductsItemization {
 }
 
 interface ProductsItemizationResult {
-  items: ProductsItemization[];
+  itemizationList: ProductsItemization[];
   anyProductNotExists: boolean;
 }
 
@@ -77,20 +76,17 @@ class ProductService implements IProductService {
       ids: data.map((product) => product.id),
     });
     const productsMap = new Map<Product['id'], PrismaProduct>();
-    const settlementItemsMap = new Map<
-      Product['id'],
-      SettlementResult['items'][0]
-    >();
+    const itemizationMap = new Map<Product['id'], ProductsItemization>();
     products.forEach((product) => {
       productsMap.set(product.id, product);
     });
     let anyProductNotExists = false;
     data.forEach((item) => {
       const product = productsMap.get(item.id);
-      const settlementItem = settlementItemsMap.get(item.id);
+      const settlementItem = itemizationMap.get(item.id);
       if (product) {
         if (!settlementItem) {
-          settlementItemsMap.set(product.id, {
+          itemizationMap.set(product.id, {
             productId: product.id,
             productSkuId: product.skuId,
             name: product.name,
@@ -101,7 +97,7 @@ class ProductService implements IProductService {
             svipPrice: item.quantity * product.svipPrice,
           });
         } else {
-          settlementItemsMap.set(product.id, {
+          itemizationMap.set(product.id, {
             ...settlementItem,
             quantity: settlementItem.quantity + item.quantity,
             price: settlementItem.price + item.quantity * product.price,
@@ -117,9 +113,9 @@ class ProductService implements IProductService {
         anyProductNotExists = true;
       }
     });
-    const items = Array.from(settlementItemsMap.values());
+    const itemizationList = Array.from(itemizationMap.values());
 
-    return { items, anyProductNotExists };
+    return { itemizationList, anyProductNotExists };
   }
   async createProduct(data: CreateProductInput): Promise<Product | null> {
     try {
