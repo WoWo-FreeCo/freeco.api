@@ -72,7 +72,7 @@ class CheckContentService implements ICheckContentService {
     }
 
     checkContentsInSequence.forEach((checkContent) => {
-      if (result.length < checkContent.index) {
+      if (result.length >= checkContent.index) {
         result[checkContent.index] = checkContent;
       }
     });
