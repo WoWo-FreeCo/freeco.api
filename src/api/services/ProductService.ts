@@ -61,8 +61,12 @@ interface IProductService {
   getProductById(data: { id: number }): Promise<Product | null>;
   getProductsByIds(data: { ids: number[] }): Promise<Product[]>;
   getProducts(data: GetProductsInput): Promise<Product[]>;
-  checkCreateValidAttribute(data: CreateProductInput): Promise<boolean>;
-  checkUpdateValidAttribute(data: UpdateProductInput): Promise<boolean>;
+  checkCreateValidAttribute(
+    data: CreateProductInput,
+  ): Promise<{ data: boolean; message?: string }>;
+  checkUpdateValidAttribute(
+    data: UpdateProductInput,
+  ): Promise<{ data: boolean; message?: string }>;
 }
 
 class ProductService implements IProductService {
@@ -128,6 +132,7 @@ class ProductService implements IProductService {
       });
       return product;
     } catch (err) {
+      console.log(err);
       return null;
     }
   }
@@ -170,7 +175,10 @@ class ProductService implements IProductService {
         where: {
           id: data.id,
         },
-        data,
+        data: {
+          ...data,
+          skuId: data.attribute === 'COLD_CHAIN' ? null : data.skuId,
+        },
       });
     } catch (err) {
       return null;
@@ -190,44 +198,78 @@ class ProductService implements IProductService {
     }
   }
 
-  async checkCreateValidAttribute(data: CreateProductInput): Promise<boolean> {
-    if (data.attribute === 'GENERAL') {
-      if (
-        !data.skuId ||
-        !!(await prisma.product.findFirst({
-          where: {
-            skuId: data.skuId,
-          },
-        }))
-      ) {
-        return false;
-      }
+  async checkCreateValidAttribute(
+    data: CreateProductInput,
+  ): Promise<{ data: boolean; message?: string }> {
+    switch (data.attribute) {
+      case 'GENERAL':
+        if (
+          !data.skuId ||
+          !!(await prisma.product.findFirst({
+            where: {
+              skuId: data.skuId,
+            },
+          }))
+        ) {
+          return {
+            data: false,
+            message: `A ${data.attribute} product need skuId, and skuId should be unique`,
+          };
+        }
+        break;
+      case 'COLD_CHAIN':
+        if (data.skuId) {
+          return {
+            data: false,
+            message: `A ${data.attribute} product need no skuId`,
+          };
+        }
+        break;
+      default:
+        break;
     }
-    return true;
+    return { data: true };
   }
-  async checkUpdateValidAttribute(data: UpdateProductInput): Promise<boolean> {
-    if (data.attribute === 'GENERAL') {
-      if (
-        !data.skuId ||
-        !!(await prisma.product.findFirst({
-          where: {
-            AND: [
-              {
-                skuId: data.skuId,
-              },
-              {
-                NOT: {
-                  id: data.id,
+  async checkUpdateValidAttribute(
+    data: UpdateProductInput,
+  ): Promise<{ data: boolean; message?: string }> {
+    switch (data.attribute) {
+      case 'GENERAL':
+        if (
+          !data.skuId ||
+          !!(await prisma.product.findFirst({
+            where: {
+              AND: [
+                {
+                  skuId: data.skuId,
                 },
-              },
-            ],
-          },
-        }))
-      ) {
-        return false;
-      }
+                {
+                  NOT: {
+                    id: data.id,
+                  },
+                },
+              ],
+            },
+          }))
+        ) {
+          return {
+            data: false,
+            message: `A ${data.attribute} product need skuId, and skuId should be unique`,
+          };
+        }
+        break;
+      case 'COLD_CHAIN':
+        if (data.skuId) {
+          return {
+            data: false,
+            message: `A ${data.attribute} product need no skuId`,
+          };
+        }
+        break;
+      default:
+        break;
     }
-    return true;
+    return { data: true };
   }
 }
 
