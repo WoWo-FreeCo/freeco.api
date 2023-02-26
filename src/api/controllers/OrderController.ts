@@ -217,6 +217,7 @@ class OrderController {
         return;
       }
 
+      // Note: 訂單已取消
       if (order.orderStatus === OrderStatus.CANCELLED) {
         res.status(httpStatus.BAD_REQUEST).json({
           message: 'Order has been cancelled.',
@@ -224,21 +225,52 @@ class OrderController {
         return;
       }
 
-      if (order.orderStatus !== OrderStatus.WAIT_PAYMENT) {
+      // Note: 訂單已進入退貨退款程序
+      if (order.orderStatus === OrderStatus.REVOKED) {
+        res.status(httpStatus.BAD_REQUEST).json({
+          message: 'Order has been revoked.',
+        });
+        return;
+      }
+
+      // Note: 訂單等待付款
+      if (order.orderStatus === OrderStatus.WAIT_PAYMENT) {
+        const result = await orderService.cancelOrderFromWaitPayment({ id });
+        if (result.code === CancelOrderResultCode.SUCCESS) {
+          res.sendStatus(httpStatus.ACCEPTED);
+        } else {
+          res.sendStatus(httpStatus.INTERNAL_SERVER_ERROR);
+        }
+        return;
+      }
+
+      // Note: 訂單完成付款，等待出貨
+      if (order.orderStatus === OrderStatus.WAIT_DELIVER) {
+        // TODO:
+        //  (1) 綠界退款
+        //  (2) 作廢發票
+        //  (3) 取消物流
+
+        //  Note: 修改訂單狀態
+        const result = await orderService.revokeOrderFromWaitDelivery({ id });
+        if (result.code === CancelOrderResultCode.SUCCESS) {
+          res.sendStatus(httpStatus.ACCEPTED);
+        } else {
+          res.sendStatus(httpStatus.INTERNAL_SERVER_ERROR);
+        }
+        return;
+      }
+
+      // Note: 訂單已完成
+      if (order.orderStatus === OrderStatus.COMPLETED) {
         res.status(httpStatus.BAD_REQUEST).json({
           message:
-            'Order payment has been paid. The order cannot be canceled at this time. ' +
+            'Order has completed. The order cannot be canceled at this time.' +
             'Please contact our customer service staff for effective assistance.',
         });
         return;
       }
 
-      const result = await orderService.cancelOrder({ id });
-      if (result.code !== CancelOrderResultCode.SUCCESS) {
-        res.sendStatus(httpStatus.INTERNAL_SERVER_ERROR);
-        return;
-      }
-      res.sendStatus(httpStatus.ACCEPTED);
       return;
     } catch (err) {
       next(err);

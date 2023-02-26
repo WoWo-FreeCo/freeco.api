@@ -1,7 +1,6 @@
 import prisma from '../../database/client/prisma';
 import { Product, ProductImage } from '@prisma/client';
 import { Product as PrismaProduct, ProductAttribute } from '.prisma/client';
-import { SettlementResult } from './PaymentService';
 
 interface CreateProductInput {
   categoryId?: number;
@@ -45,7 +44,7 @@ export interface ProductsItemization {
 }
 
 interface ProductsItemizationResult {
-  items: ProductsItemization[];
+  itemizationList: ProductsItemization[];
   anyProductNotExists: boolean;
 }
 
@@ -77,8 +76,12 @@ interface IProductService {
   getProductById(data: { id: number }): Promise<Product | null>;
   getProductsByIds(data: { ids: number[] }): Promise<Product[]>;
   getProducts(data: GetProductsInput): Promise<Product[]>;
-  checkCreateValidAttribute(data: CreateProductInput): Promise<boolean>;
-  checkUpdateValidAttribute(data: UpdateProductInput): Promise<boolean>;
+  checkCreateValidAttribute(
+    data: CreateProductInput,
+  ): Promise<{ data: boolean; message?: string }>;
+  checkUpdateValidAttribute(
+    data: UpdateProductInput,
+  ): Promise<{ data: boolean; message?: string }>;
 }
 
 class ProductService implements IProductService {
@@ -92,20 +95,17 @@ class ProductService implements IProductService {
       ids: data.map((product) => product.id),
     });
     const productsMap = new Map<Product['id'], PrismaProduct>();
-    const settlementItemsMap = new Map<
-      Product['id'],
-      SettlementResult['items'][0]
-    >();
+    const itemizationMap = new Map<Product['id'], ProductsItemization>();
     products.forEach((product) => {
       productsMap.set(product.id, product);
     });
     let anyProductNotExists = false;
     data.forEach((item) => {
       const product = productsMap.get(item.id);
-      const settlementItem = settlementItemsMap.get(item.id);
+      const settlementItem = itemizationMap.get(item.id);
       if (product) {
         if (!settlementItem) {
-          settlementItemsMap.set(product.id, {
+          itemizationMap.set(product.id, {
             productId: product.id,
             productSkuId: product.skuId,
             name: product.name,
@@ -116,7 +116,7 @@ class ProductService implements IProductService {
             svipPrice: item.quantity * product.svipPrice,
           });
         } else {
-          settlementItemsMap.set(product.id, {
+          itemizationMap.set(product.id, {
             ...settlementItem,
             quantity: settlementItem.quantity + item.quantity,
             price: settlementItem.price + item.quantity * product.price,
@@ -132,9 +132,9 @@ class ProductService implements IProductService {
         anyProductNotExists = true;
       }
     });
-    const items = Array.from(settlementItemsMap.values());
+    const itemizationList = Array.from(itemizationMap.values());
 
-    return { items, anyProductNotExists };
+    return { itemizationList, anyProductNotExists };
   }
   async createProduct(data: CreateProductInput): Promise<Product | null> {
     try {
@@ -147,6 +147,7 @@ class ProductService implements IProductService {
       });
       return product;
     } catch (err) {
+      console.log(err);
       return null;
     }
   }
@@ -192,7 +193,10 @@ class ProductService implements IProductService {
         where: {
           id: data.id,
         },
-        data,
+        data: {
+          ...data,
+          skuId: data.attribute === 'COLD_CHAIN' ? null : data.skuId,
+        },
       });
     } catch (err) {
       return null;
@@ -212,44 +216,78 @@ class ProductService implements IProductService {
     }
   }
 
-  async checkCreateValidAttribute(data: CreateProductInput): Promise<boolean> {
-    if (data.attribute === 'GENERAL') {
-      if (
-        !data.skuId ||
-        !!(await prisma.product.findFirst({
-          where: {
-            skuId: data.skuId,
-          },
-        }))
-      ) {
-        return false;
-      }
+  async checkCreateValidAttribute(
+    data: CreateProductInput,
+  ): Promise<{ data: boolean; message?: string }> {
+    switch (data.attribute) {
+      case 'GENERAL':
+        if (
+          !data.skuId ||
+          !!(await prisma.product.findFirst({
+            where: {
+              skuId: data.skuId,
+            },
+          }))
+        ) {
+          return {
+            data: false,
+            message: `A ${data.attribute} product need skuId, and skuId should be unique`,
+          };
+        }
+        break;
+      case 'COLD_CHAIN':
+        if (data.skuId) {
+          return {
+            data: false,
+            message: `A ${data.attribute} product need no skuId`,
+          };
+        }
+        break;
+      default:
+        break;
     }
-    return true;
+    return { data: true };
   }
-  async checkUpdateValidAttribute(data: UpdateProductInput): Promise<boolean> {
-    if (data.attribute === 'GENERAL') {
-      if (
-        !data.skuId ||
-        !!(await prisma.product.findFirst({
-          where: {
-            AND: [
-              {
-                skuId: data.skuId,
-              },
-              {
-                NOT: {
-                  id: data.id,
+  async checkUpdateValidAttribute(
+    data: UpdateProductInput,
+  ): Promise<{ data: boolean; message?: string }> {
+    switch (data.attribute) {
+      case 'GENERAL':
+        if (
+          !data.skuId ||
+          !!(await prisma.product.findFirst({
+            where: {
+              AND: [
+                {
+                  skuId: data.skuId,
                 },
-              },
-            ],
-          },
-        }))
-      ) {
-        return false;
-      }
+                {
+                  NOT: {
+                    id: data.id,
+                  },
+                },
+              ],
+            },
+          }))
+        ) {
+          return {
+            data: false,
+            message: `A ${data.attribute} product need skuId, and skuId should be unique`,
+          };
+        }
+        break;
+      case 'COLD_CHAIN':
+        if (data.skuId) {
+          return {
+            data: false,
+            message: `A ${data.attribute} product need no skuId`,
+          };
+        }
+        break;
+      default:
+        break;
     }
-    return true;
+    return { data: true };
   }
 }
 

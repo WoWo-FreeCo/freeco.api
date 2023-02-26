@@ -57,7 +57,7 @@ const updateSchema: ObjectSchema<UpdateBody> = object({
 
 interface Product {
   id: number;
-  skuId?: string;
+  skuId: string | null;
   name: string;
   price: number;
   memberPrice: number;
@@ -77,12 +77,13 @@ class AdminProductController {
     }
 
     try {
-      const valid = await AdminProductService.checkCreateValidAttribute({
-        ...createBody,
-      });
+      const { data: valid, message } =
+        await AdminProductService.checkCreateValidAttribute({
+          ...createBody,
+        });
       if (!valid) {
         res.status(httpStatus.BAD_REQUEST).json({
-          message: `Product with attribute [${createBody.attribute}] is invalid.`,
+          message: `Product with attribute [${createBody.attribute}] is invalid. ${message}.`,
         });
         return;
       }
@@ -93,6 +94,7 @@ class AdminProductController {
       if (product) {
         const responseData: Product = {
           id: product.id,
+          skuId: product.skuId,
           name: product.name,
           price: product.price,
           memberPrice: product.memberPrice,
@@ -106,7 +108,7 @@ class AdminProductController {
       } else {
         res
           .status(httpStatus.BAD_REQUEST)
-          .json({ message: 'Could not process the category id .' });
+          .json({ message: 'Could not process the category id.' });
       }
     } catch (err) {
       next(err);
@@ -127,13 +129,14 @@ class AdminProductController {
     }
 
     try {
-      const valid = await AdminProductService.checkUpdateValidAttribute({
-        id,
-        ...updateBody,
-      });
+      const { data: valid, message } =
+        await AdminProductService.checkUpdateValidAttribute({
+          id,
+          ...updateBody,
+        });
       if (!valid) {
         res.status(httpStatus.BAD_REQUEST).json({
-          message: `Product with attribute [${updateBody.attribute}] is invalid.`,
+          message: `Product with attribute [${updateBody.attribute}] is invalid. ${message}.`,
         });
         return;
       }
@@ -143,7 +146,17 @@ class AdminProductController {
         ...updateBody,
       });
       if (product) {
-        res.status(httpStatus.OK).json({ data: product });
+        const responseData: Product = {
+          id: product.id,
+          skuId: product.skuId,
+          name: product.name,
+          price: product.price,
+          memberPrice: product.memberPrice,
+          vipPrice: product.vipPrice,
+          svipPrice: product.svipPrice,
+          attribute: product.attribute,
+        };
+        res.status(httpStatus.OK).json({ data: responseData });
       } else {
         res.status(httpStatus.BAD_REQUEST).json({ message: 'Id is invalid.' });
       }

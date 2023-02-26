@@ -1111,6 +1111,15 @@ ecpay_aio_nodejs@^1.0.2:
     elementtree "^0.1.7"
     iconv-lite "^0.4.18"
 
+ecpay_invoice_nodejs@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/ecpay_invoice_nodejs/-/ecpay_invoice_nodejs-1.0.1.tgz#7032ecd651bb65c8eaea443ecddccff05916c807"
+  integrity sha512-cy5PSHH2Qw4ngZ28X6Ht48osaUcfoE+g/foi4qVsKOEIbcpo+Y+b9BF5Pq2S6BO3bXw29yfFtquG/EVdUhQZ4w==
+  dependencies:
+    buffer "^5.0.6"
+    elementtree "^0.1.7"
+    iconv-lite "^0.4.18"
+
 ee-first@1.1.1:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/ee-first/-/ee-first-1.1.1.tgz#590c61156b0ae2f4f0255732a158b266bc56b21d"
