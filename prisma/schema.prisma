@@ -180,6 +180,16 @@ model Product {
   orderItemsBySkuId OrderItem[]      @relation("productFromSkuId")
   createdAt         DateTime         @default(now()) @db.Timestamp(0)
   updatedAt         DateTime         @updatedAt @db.Timestamp(0)
+  productImages     ProductImage[]
+}
+
+model ProductImage {
+  id        Int      @id @default(autoincrement())
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  productId Int?
+  imagePath String
+  createdAt DateTime @default(now()) @db.Timestamp(0)
+  updatedAt DateTime @updatedAt @db.Timestamp(0)
 }
 
 model HomeBanner {

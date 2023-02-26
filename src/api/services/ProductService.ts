@@ -1,5 +1,5 @@
 import prisma from '../../database/client/prisma';
-import { Product } from '@prisma/client';
+import { Product, ProductImage } from '@prisma/client';
 import { Product as PrismaProduct, ProductAttribute } from '.prisma/client';
 import { SettlementResult } from './PaymentService';
 
@@ -47,6 +47,21 @@ export interface ProductsItemization {
 interface ProductsItemizationResult {
   items: ProductsItemization[];
   anyProductNotExists: boolean;
+}
+
+interface ProductWithImage {
+  id: number;
+  skuId: string | null;
+  name: string;
+  price: number;
+  memberPrice: number;
+  vipPrice: number;
+  svipPrice: number;
+  attribute: ProductAttribute;
+  categoryId: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+  productImages: ProductImage[];
 }
 
 interface IProductService {
@@ -158,10 +173,13 @@ class ProductService implements IProductService {
   async getProducts({
     categoryId,
     pagination: { take, skip },
-  }: GetProductsInput): Promise<Product[]> {
+  }: GetProductsInput): Promise<ProductWithImage[]> {
     return prisma.product.findMany({
       where: {
         categoryId,
+      },
+      include: {
+        productImages: true
       },
       take,
       skip,
