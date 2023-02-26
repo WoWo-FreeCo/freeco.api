@@ -174,7 +174,7 @@ class PaymentService implements IPaymentService {
       ? svipPrice
       : price;
   }
-  private static paymentTotalInfoCalculate(data: {
+  private static priceInfoCalculate(data: {
     itemizationList: ProductsItemization[];
   }): {
     priceInfo: {
@@ -190,12 +190,10 @@ class PaymentService implements IPaymentService {
         ...result,
         quantity: result.quantity + item.quantity,
         priceInfo: {
-          price: result.priceInfo.price + item.price * item.quantity,
-          memberPrice:
-            result.priceInfo.memberPrice + item.memberPrice * item.quantity,
-          vipPrice: result.priceInfo.vipPrice + item.vipPrice * item.quantity,
-          svipPrice:
-            result.priceInfo.svipPrice + item.svipPrice * item.quantity,
+          price: result.priceInfo.price + item.price,
+          memberPrice: result.priceInfo.memberPrice + item.memberPrice,
+          vipPrice: result.priceInfo.vipPrice + item.vipPrice,
+          svipPrice: result.priceInfo.svipPrice + item.svipPrice,
         },
       }),
       {
@@ -209,8 +207,25 @@ class PaymentService implements IPaymentService {
       },
     );
   }
-  private static paymentDeliveryFeeCalculate(): number {
+  private static deliveryFeeCalculate(): number {
     return PaymentService.DEFAULT_DELIVERY_FEE;
+  }
+  private static settlementItemsCalculate(data: {
+    itemizationList: ProductsItemization[];
+    memberLevel: MemberLevel;
+  }): SettlementResult['items'] {
+    const { itemizationList, memberLevel } = data;
+    return itemizationList.map((item) => ({
+      ...item,
+      paymentPrice:
+        memberLevel === 'NORMAL'
+          ? item.memberPrice
+          : memberLevel === 'VIP'
+          ? item.vipPrice
+          : memberLevel === 'SVIP'
+          ? item.svipPrice
+          : item.price,
+    }));
   }
   async payment(data: PaymentInput): Promise<string | null> {
     const order = await prisma.order.findFirst({
@@ -363,27 +378,20 @@ class PaymentService implements IPaymentService {
 
     // Note: （支付系統）價格計算
     // TODO: 價格計算
-    const deliveryFee = PaymentService.paymentDeliveryFeeCalculate();
-    const { priceInfo, quantity } = PaymentService.paymentTotalInfoCalculate({
+    const deliveryFee = PaymentService.deliveryFeeCalculate();
+    const { priceInfo, quantity } = PaymentService.priceInfoCalculate({
       itemizationList,
     });
     const paymentPrice = PaymentService.paymentPriceCalculate({
       memberLevel,
       priceInfo,
     });
-    const items = itemizationList.map((item) => ({
-      ...item,
-      paymentPrice:
-        memberLevel === 'NORMAL'
-          ? item.memberPrice
-          : memberLevel === 'VIP'
-          ? item.vipPrice
-          : memberLevel === 'SVIP'
-          ? item.svipPrice
-          : item.price,
-    }));
+    const items = PaymentService.settlementItemsCalculate({
+      itemizationList,
+      memberLevel,
+    });
     const settleResult: SettlementResult = {
-      items: items,
+      items,
       quantity,
       deliveryFee,
       priceInfo,
