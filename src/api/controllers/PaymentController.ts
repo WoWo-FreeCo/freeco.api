@@ -113,6 +113,8 @@ const settleSchema: ObjectSchema<SettlementBody> = object({
 type Settlement = SettlementResult;
 
 interface PaymentBody {
+  // Note: 信用卡一次付清、超商代碼、超商條碼
+  choosePayment: 'CREDIT_ONE_TIME' | 'CVS' | 'BARCODE';
   attribute: ProductAttribute;
   consignee: Consignee;
   products: Product[];
@@ -121,6 +123,9 @@ interface PaymentBody {
 }
 
 const paymentSchema: ObjectSchema<PaymentBody> = object({
+  choosePayment: string()
+    .oneOf(['CREDIT_ONE_TIME', 'CVS', 'BARCODE'])
+    .required(),
   attribute: string()
     .oneOf([ProductAttribute.GENERAL, ProductAttribute.COLD_CHAIN])
     .required(),
@@ -200,7 +205,7 @@ class PaymentController {
           clientBackURL: req.query['client_back_url'] as string,
         },
         paymentParams: {
-          choosePayment: 'Credit',
+          choosePayment: paymentBody.choosePayment,
           tradeDesc: 'tradeDesc',
         },
       });

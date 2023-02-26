@@ -23,7 +23,7 @@ interface PaymentInput {
     clientBackURL?: string;
   };
   paymentParams: {
-    choosePayment: 'Credit';
+    choosePayment: 'CREDIT_ONE_TIME' | 'CVS' | 'BARCODE';
     tradeDesc: string;
   };
 }
@@ -300,10 +300,45 @@ class PaymentService implements IPaymentService {
       ...invoiceItem,
     };
     const create = new EcpayPayment(ecpayOptions);
-    const html = create.payment_client.aio_check_out_credit_onetime(
-      base_param,
-      inv_params,
-    );
+    let html = null;
+    switch (data.paymentParams.choosePayment) {
+      case 'CREDIT_ONE_TIME':
+        html = create.payment_client.aio_check_out_credit_onetime(
+          base_param,
+          inv_params,
+        );
+        break;
+      case 'CVS':
+        html = create.payment_client.aio_check_out_cvs(
+          {
+            Desc_1: '',
+            Desc_2: '',
+            Desc_3: '',
+            Desc_4: '',
+            PaymentInfoURL: '',
+            StoreExpireDate: '',
+          },
+          base_param,
+          inv_params,
+        );
+        break;
+      case 'BARCODE':
+        html = create.payment_client.aio_check_out_barcode(
+          {
+            Desc_1: '',
+            Desc_2: '',
+            Desc_3: '',
+            Desc_4: '',
+            PaymentInfoURL: '',
+            StoreExpireDate: '',
+          },
+          base_param,
+          inv_params,
+        );
+        break;
+      default:
+        break;
+    }
 
     return String(html);
   }
