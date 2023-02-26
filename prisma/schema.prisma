@@ -282,3 +282,17 @@ model WebPage {
   createdAt DateTime @default(now()) @db.Timestamp(0)
   updatedAt DateTime @updatedAt @db.Timestamp(0)
 }
+
+enum DeliveryFeeRuleType {
+  FEE
+  THRESHOLD
+}
+
+model DeliveryFeeRule {
+  id        Int                 @id @default(autoincrement())
+  name      String
+  ruleType  DeliveryFeeRuleType
+  rule      Int
+  createdAt DateTime            @default(now()) @db.Timestamp(0)
+  updatedAt DateTime            @updatedAt @db.Timestamp(0)
+}

@@ -8,6 +8,35 @@ import ecpayBaseOptions from '../../utils/ecpay/conf/baseOptions';
 import userService, { MemberLevel } from './UserService';
 import prisma from '../../database/client/prisma';
 import Logger from '../../utils/logger';
+import { AddressType, checkAddressType } from '../../utils/helper/address/index';
+import { 
+  TAIWAN_ISLAND_DELIVERY_FEE_ID,
+  OUTLYING_ISLAND_DELIVERY_FEE_ID,
+  FREE_DELIVERY_ITEM_THRESHOLD_ID,
+  FREE_DELIVERY_PRICE_THRESHOLD_ID
+} from '../../utils/constant';
+import { Timeslot } from './OrderService';
+
+interface Consignee {
+  deliveryType: 'HOME' | 'STORE';
+  addressDetailOne?: string;
+  addressDetailTwo?: string;
+  city?: string;
+  district?: string;
+  email?: string;
+  idNo?: string;
+  idType?: '1';
+  cellphone?: string;
+  name?: string;
+  province?: string;
+  remark?: string;
+  stationCode?: string;
+  stationName?: string;
+  town?: string;
+  zipCode?: string;
+  senderRemark?: string;
+  requiredDeliveryTimeslots?: Timeslot[];
+}
 
 export const DELIVERY_ITEM_NAME = '運費';
 export const BONUS_POINT_ITEM_NAME = '紅利折抵';
@@ -15,6 +44,7 @@ export const BONUS_POINT_ITEM_NAME = '紅利折抵';
 export interface SettlementInput {
   user: User;
   userActivation: UserActivation;
+  consignee: Consignee;
   products: {
     id: number;
     quantity: number;
@@ -156,7 +186,7 @@ class PaymentService implements IPaymentService {
       `RelateNumber: ${data.invoiceInfo.orderRelateNumber} - ${response}`,
     );
   }
-  private static readonly DEFAULT_DELIVERY_FEE: number = 60;
+  // private static readonly DEFAULT_DELIVERY_FEE: number = 60;
 
   private static paymentPriceCalculate(data: {
     memberLevel: MemberLevel;
@@ -214,8 +244,26 @@ class PaymentService implements IPaymentService {
       },
     );
   }
-  private static deliveryFeeCalculate(): number {
-    return PaymentService.DEFAULT_DELIVERY_FEE;
+  private static async deliveryFeeCalculate(
+    addressType: AddressType,
+    paymentPrice: number,
+    quantity: number
+  ): Promise<number> {
+    // return PaymentService.DEFAULT_DELIVERY_FEE;
+    const freeDeliveryItemThreshold = (
+      await prisma.deliveryFeeRule.findFirstOrThrow({where: {id: FREE_DELIVERY_ITEM_THRESHOLD_ID}})
+    ).rule;
+    const freeDeliveryPriceThreshold = (
+      await prisma.deliveryFeeRule.findFirstOrThrow({where: {id: FREE_DELIVERY_PRICE_THRESHOLD_ID}})
+    ).rule;  
+
+    if (quantity >= freeDeliveryItemThreshold || paymentPrice >= freeDeliveryPriceThreshold) return 0;
+    
+    return (await prisma.deliveryFeeRule.findFirstOrThrow({
+      where: {
+        id: addressType == AddressType.TaiwanIsland ? TAIWAN_ISLAND_DELIVERY_FEE_ID : OUTLYING_ISLAND_DELIVERY_FEE_ID
+      }
+    })).rule;
   }
   private static settlementItemsCalculate(data: {
     itemizationList: ProductsItemization[];
@@ -234,6 +282,7 @@ class PaymentService implements IPaymentService {
           : item.price,
     }));
   }
+
   async payment(data: PaymentInput): Promise<string | null> {
     const order = await prisma.order.findFirst({
       where: {
@@ -385,7 +434,6 @@ class PaymentService implements IPaymentService {
 
     // Note: （支付系統）價格計算
     // TODO: 價格計算
-    const deliveryFee = PaymentService.deliveryFeeCalculate();
     const { priceInfo, quantity } = PaymentService.priceInfoCalculate({
       itemizationList,
     });
@@ -399,6 +447,12 @@ class PaymentService implements IPaymentService {
     });
     // Note: 使用紅利折抵
     const bonusPointRedemption = data.bonusPointRedemption ? data.bonusPointRedemption : 0;
+
+    const deliveryFee = await PaymentService.deliveryFeeCalculate(
+      checkAddressType(),
+      paymentPrice,
+      quantity
+    );
 
     const settleResult: SettlementResult = {
       items,
