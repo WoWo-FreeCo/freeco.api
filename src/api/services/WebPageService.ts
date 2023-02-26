@@ -11,6 +11,10 @@ interface IWebPageService {
 }
 
 class WebPageService implements IWebPageService {
+  async getAllWebPage(): Promise<WebPage[]> {
+    return await prisma.webPage.findMany();
+  }
+
   async getWebPage(data: { id: number }): Promise<WebPage|null> {
     return await prisma.webPage.findFirst({
       where: {
