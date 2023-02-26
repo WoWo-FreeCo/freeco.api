@@ -7,6 +7,7 @@ import EcpayInvoice from 'ecpay_invoice_nodejs/lib/ecpay_invoice';
 import ecpayBaseOptions from '../../utils/ecpay/conf/baseOptions';
 import userService, { MemberLevel } from './UserService';
 import prisma from '../../database/client/prisma';
+import Logger from '../../utils/logger';
 
 export interface SettlementInput {
   user: User;
@@ -146,7 +147,9 @@ class PaymentService implements IPaymentService {
       InvType: data.invoiceInfo.invType,
       vat: data.invoiceInfo.vat,
     });
-    console.log(response);
+    Logger.info(
+      `RelateNumber: ${data.invoiceInfo.orderRelateNumber} - ${response}`,
+    );
   }
   private static readonly DEFAULT_DELIVERY_FEE: number = 60;
 

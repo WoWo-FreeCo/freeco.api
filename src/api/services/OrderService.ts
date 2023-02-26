@@ -77,6 +77,7 @@ interface GetOrdersInput {
 export enum CancelOrderResultCode {
   SUCCESS = 'success',
   CO001 = 'CO-001',
+  CO002 = 'CO-002',
 }
 interface CancelOrderResult {
   code: CancelOrderResultCode;
@@ -84,8 +85,10 @@ interface CancelOrderResult {
 
 interface IOrderService {
   createOrder(data: CreateOrderInput): Promise<Order>;
-  cancelOrder(data: { id: string }): Promise<CancelOrderResult>;
-  settleOrder(data: { id: string }): Promise<boolean>;
+  cancelOrderFromWaitPayment(data: { id: string }): Promise<CancelOrderResult>;
+  revokeOrderFromWaitDelivery(data: { id: string }): Promise<CancelOrderResult>;
+  completeOrderPaymentFromWaitDelivery(data: { id: string }): Promise<boolean>;
+  revokeOrderFromWaitPayment(data: { id: string }): Promise<boolean>;
   getOrderById(data: {
     id: string;
     restrict?: {
@@ -231,7 +234,9 @@ class OrderService implements IOrderService {
     });
   }
 
-  async cancelOrder(data: { id: string }): Promise<CancelOrderResult> {
+  async cancelOrderFromWaitPayment(data: {
+    id: string;
+  }): Promise<CancelOrderResult> {
     const result = await prisma.order.updateMany({
       where: {
         id: data.id,
@@ -251,7 +256,31 @@ class OrderService implements IOrderService {
       code: CancelOrderResultCode.SUCCESS,
     };
   }
-  async settleOrder(data: { id: string }): Promise<boolean> {
+  async revokeOrderFromWaitDelivery(data: {
+    id: string;
+  }): Promise<CancelOrderResult> {
+    const result = await prisma.order.updateMany({
+      where: {
+        id: data.id,
+        orderStatus: OrderStatus.WAIT_DELIVER,
+      },
+      data: {
+        orderStatus: OrderStatus.REVOKED,
+      },
+    });
+    if (result.count === 0) {
+      return {
+        code: CancelOrderResultCode.CO002,
+      };
+    }
+
+    return {
+      code: CancelOrderResultCode.SUCCESS,
+    };
+  }
+  async completeOrderPaymentFromWaitDelivery(data: {
+    id: string;
+  }): Promise<boolean> {
     const result = await prisma.order.updateMany({
       where: {
         id: data.id,
@@ -259,6 +288,20 @@ class OrderService implements IOrderService {
       },
       data: {
         orderStatus: OrderStatus.WAIT_DELIVER,
+      },
+    });
+
+    return result.count === 1;
+  }
+
+  async revokeOrderFromWaitPayment(data: { id: string }): Promise<boolean> {
+    const result = await prisma.order.updateMany({
+      where: {
+        id: data.id,
+        orderStatus: OrderStatus.WAIT_PAYMENT,
+      },
+      data: {
+        orderStatus: OrderStatus.REVOKED,
       },
     });
 

@@ -280,24 +280,32 @@ class PaymentController {
           merchantTradeNo: req.body.MerchantTradeNo,
         });
         if (orderDetail && orderDetail.consignee && orderDetail.invoiceInfo) {
-          switch (orderDetail.attribute) {
-            case 'GENERAL':
-              await PaymentService.issueInvoice({
-                invoiceInfo: orderDetail.invoiceInfo,
-              });
-              await OrderService.createOutboundOrder({
-                order: orderDetail,
-                consignee: orderDetail.consignee,
-                orderItems: orderDetail.orderItems,
-              });
-              break;
-          }
+          // Note: 訂單等待付款
           if (orderDetail.orderStatus === OrderStatus.WAIT_PAYMENT) {
-            await OrderService.settleOrder({ id: orderDetail.id });
+            switch (orderDetail.attribute) {
+              case 'GENERAL':
+                await PaymentService.issueInvoice({
+                  invoiceInfo: orderDetail.invoiceInfo,
+                });
+                await OrderService.createOutboundOrder({
+                  order: orderDetail,
+                  consignee: orderDetail.consignee,
+                  orderItems: orderDetail.orderItems,
+                });
+                break;
+            }
+            await OrderService.completeOrderPaymentFromWaitDelivery({
+              id: orderDetail.id,
+            });
+            // Note: 訂單已取消
           } else if (orderDetail.orderStatus === OrderStatus.CANCELLED) {
             // TODO:
-            //  (1) 綠界取消退款
-            //  (2) 變更 orderStatus 為 REVOKED
+            //  (1) 綠界退款
+            // Note: 變更 orderStatus 為 REVOKED
+            await OrderService.revokeOrderFromWaitPayment({
+              id: orderDetail.id,
+            });
+            // Note: 訂單並未等待付款，也並未取消。該訂單已經付款完畢，卻再次收到來自綠界通知
           } else {
             Logger.error(
               `Error: Order payment has been settled in advance. There might be potential bugs beneath.`,
