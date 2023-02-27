@@ -16,6 +16,7 @@ import OrderService, { Timeslot } from '../services/OrderService';
 import config from 'config';
 import { ProductAttribute } from '.prisma/client';
 import { OrderStatus } from '@prisma/client';
+import BonusPointService from '../services/BonusPointService';
 
 interface Product {
   id: number;
@@ -101,6 +102,8 @@ const invoiceParamsSchema: ObjectSchema<InvoiceParams> = object({
 interface SettlementBody {
   attribute: ProductAttribute;
   products: Product[];
+  // Note: 使用紅利消費
+  bonusPointRedemption?: number;
 }
 
 const settleSchema: ObjectSchema<SettlementBody> = object({
@@ -108,6 +111,7 @@ const settleSchema: ObjectSchema<SettlementBody> = object({
     .oneOf([ProductAttribute.GENERAL, ProductAttribute.COLD_CHAIN])
     .required(),
   products: array().required().of(productSchema),
+  bonusPointRedemption: number().positive().optional(),
 });
 
 type Settlement = SettlementResult;
@@ -118,6 +122,8 @@ interface PaymentBody {
   attribute: ProductAttribute;
   consignee: Consignee;
   products: Product[];
+  // Note: 使用紅利消費
+  bonusPointRedemption?: number;
   invoiceParams: InvoiceParams;
   orderNote?: string;
 }
@@ -131,6 +137,7 @@ const paymentSchema: ObjectSchema<PaymentBody> = object({
     .required(),
   consignee: consigneeSchema,
   products: array().required().of(productSchema),
+  bonusPointRedemption: number().positive().optional(),
   invoiceParams: invoiceParamsSchema,
   orderNote: string().optional(),
 });
@@ -158,16 +165,31 @@ class PaymentController {
         return;
       }
 
+      // Note: Check if user has enough amout of bonus points
+      if (paymentBody.bonusPointRedemption && paymentBody.bonusPointRedemption > 0) {
+        const bonusPointBalance = await BonusPointService.getUserBonusPointBalance(id);
+        if (paymentBody.bonusPointRedemption > bonusPointBalance) {
+          res.status(httpStatus.BAD_REQUEST).send('紅利點數不足！');
+          return;
+        }
+      }
+
       // Note: Init settlement result
       const settlementResult = await PaymentService.settlement({
         user: user,
         userActivation: user.activation,
         products: paymentBody.products,
+        bonusPointRedemption: paymentBody.bonusPointRedemption ? paymentBody.bonusPointRedemption : 0
       });
       if (!settlementResult) {
         res.status(httpStatus.BAD_REQUEST).json({
           message: 'One (or many) of product ids not exist.',
         });
+        return;
+      }
+
+      if (settlementResult.bonusPointRedemption > settlementResult.paymentPrice) {
+        res.status(httpStatus.BAD_REQUEST).send('紅利使用超過折抵上限！');
         return;
       }
 
@@ -195,6 +217,7 @@ class PaymentController {
           invType: '07',
           vat: '1',
         },
+        bonusPointRedemption: settlementResult.bonusPointRedemption,
       });
 
       // Note: Make a payment from the order just created before
@@ -247,6 +270,15 @@ class PaymentController {
         return;
       }
 
+      // Note: Check if user has enough amout of bonus points
+      if (settleBody.bonusPointRedemption && settleBody.bonusPointRedemption > 0) {
+        const bonusPointBalance = await BonusPointService.getUserBonusPointBalance(id);
+        if (settleBody.bonusPointRedemption > bonusPointBalance) {
+          res.status(httpStatus.BAD_REQUEST).send('紅利點數不足！');
+          return;
+        }
+      }
+
       const result: Settlement | null = await PaymentService.settlement({
         user,
         userActivation: user.activation,
@@ -254,6 +286,11 @@ class PaymentController {
       });
 
       if (result) {
+        if (result.bonusPointRedemption > result.paymentPrice) {
+          res.status(httpStatus.BAD_REQUEST).send('紅利使用超過折抵上限！');
+          return;
+        }
+
         res.status(httpStatus.OK).json({
           data: result,
         });

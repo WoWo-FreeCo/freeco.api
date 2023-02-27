@@ -7,6 +7,7 @@ import jwt from '../../utils/jwt';
 import config from 'config';
 import userService from '../services/UserService';
 import { Pagination } from '../../utils/helper/pagination';
+import BonusPointService from '../services/BonusPointService';
 
 interface RegisterBody {
   email: string;
@@ -121,10 +122,13 @@ class UserController {
       const hashedPassword = await bcrypt.hash(registerBody.password, 10);
 
       // Note: Create user
-      await UserService.createUser({
+      const user = await UserService.createUser({
         ...registerBody,
         password: hashedPassword,
       });
+
+      // Send register bonus points
+      await BonusPointService.gainFromRegisterMembership(user.id);
 
       res.status(httpStatus.CREATED).send();
     } catch (err) {
