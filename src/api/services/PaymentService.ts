@@ -9,6 +9,9 @@ import userService, { MemberLevel } from './UserService';
 import prisma from '../../database/client/prisma';
 import Logger from '../../utils/logger';
 
+export const DELIVERY_ITEM_NAME = '運費';
+export const BONUS_POINT_ITEM_NAME = '紅利折抵';
+
 export interface SettlementInput {
   user: User;
   userActivation: UserActivation;
@@ -16,6 +19,7 @@ export interface SettlementInput {
     id: number;
     quantity: number;
   }[];
+  bonusPointRedemption?: number;
 }
 interface PaymentInput {
   orderId: string;
@@ -101,6 +105,7 @@ export interface SettlementResult {
     svipPrice: number;
   };
   deliveryFee: number;
+  bonusPointRedemption: number;
   quantity: number;
   paymentPrice: number;
 }
@@ -392,12 +397,16 @@ class PaymentService implements IPaymentService {
       itemizationList,
       memberLevel,
     });
+    // Note: 使用紅利折抵
+    const bonusPointRedemption = data.bonusPointRedemption ? data.bonusPointRedemption : 0;
+
     const settleResult: SettlementResult = {
       items,
       quantity,
       deliveryFee,
       priceInfo,
       paymentPrice,
+      bonusPointRedemption,
     };
 
     // Note: 將運費紀為一筆 item
@@ -405,7 +414,7 @@ class PaymentService implements IPaymentService {
       settleResult.items.push({
         productId: null,
         productSkuId: null,
-        name: '運費',
+        name: DELIVERY_ITEM_NAME,
         price: settleResult.deliveryFee,
         memberPrice: settleResult.deliveryFee,
         vipPrice: settleResult.deliveryFee,
@@ -419,6 +428,27 @@ class PaymentService implements IPaymentService {
       settleResult.priceInfo.vipPrice += settleResult.deliveryFee;
       settleResult.priceInfo.svipPrice += settleResult.deliveryFee;
       settleResult.paymentPrice += settleResult.deliveryFee;
+    }
+
+    // Note: 將紅利折抵紀為一筆 item
+    if (settleResult.bonusPointRedemption > 0) {
+      settleResult.items.push({
+        productId: null,
+        productSkuId: null,
+        name: BONUS_POINT_ITEM_NAME,
+        price: 0-settleResult.bonusPointRedemption,
+        memberPrice: 0-settleResult.bonusPointRedemption,
+        vipPrice: 0-settleResult.bonusPointRedemption,
+        svipPrice: 0-settleResult.bonusPointRedemption,
+        paymentPrice: 0-settleResult.bonusPointRedemption,
+        quantity: 1,
+      });
+      settleResult.quantity += 1;
+      settleResult.priceInfo.price -= settleResult.bonusPointRedemption;
+      settleResult.priceInfo.memberPrice -= settleResult.bonusPointRedemption;
+      settleResult.priceInfo.vipPrice -= settleResult.bonusPointRedemption;
+      settleResult.priceInfo.svipPrice -= settleResult.bonusPointRedemption;
+      settleResult.paymentPrice -= settleResult.bonusPointRedemption;
     }
 
     // Note: （倉儲系統）庫存檢查、運費計算、庫存調整

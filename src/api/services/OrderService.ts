@@ -12,6 +12,7 @@ import { WarehouseExpressCode } from '../../utils/one-warehouse/client/type/data
 import { ProductAttribute } from '.prisma/client';
 import { Pagination } from '../../utils/helper/pagination';
 import { ItemPayment } from './PaymentService';
+import BonusPointService from './BonusPointService';
 export interface Timeslot {
   date: Date;
   slot: string;
@@ -67,6 +68,7 @@ interface CreateOrderInput {
     vat: '1';
   };
   items: ItemPayment[];
+  bonusPointRedemption: number;
 }
 
 interface GetOrdersInput {
@@ -163,6 +165,13 @@ class OrderService implements IOrderService {
         itemRemark: '',
       },
     );
+
+    let bonusPointRedemptionId: number | null = null;
+    if (data.bonusPointRedemption > 0) {
+      const bonusPoint = await BonusPointService.redeem(data.userId, data.bonusPointRedemption);
+      bonusPointRedemptionId = bonusPoint.id;
+    }
+
     return prisma.order.create({
       data: {
         userId: data.userId,
@@ -230,6 +239,7 @@ class OrderService implements IOrderService {
             ...invoiceItem,
           },
         },
+        bonusPointRedemptionId: bonusPointRedemptionId,
       },
     });
   }

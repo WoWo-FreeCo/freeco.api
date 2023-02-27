@@ -4,6 +4,7 @@ import httpStatus from 'http-status';
 import UserService from '../services/UserService';
 import UserActivityService from '../services/UserActivityService';
 import CheckContentService from '../services/CheckContentService';
+import BonusPointService from '../services/BonusPointService';
 
 const indexSchema = number().min(0).max(29).required();
 
@@ -80,6 +81,7 @@ class UserActivityController {
               kind: 'VIP',
               code: activateBody.code,
             });
+            await BonusPointService.gainFromUpgradeMembership(id);
             break;
           case ActivateKind.B:
             activatedResult = await UserActivityService.activateUserActivity({
@@ -106,6 +108,7 @@ class UserActivityController {
               kind: 'SVIP',
               code: activateBody.code,
             });
+            await BonusPointService.gainFromUpgradeMembership(id);
             break;
         }
         if (activatedResult) {

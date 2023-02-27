@@ -8,6 +8,7 @@ import { ProductAttribute } from '.prisma/client';
 import { DeliveryType, OrderStatus } from '@prisma/client';
 import OneWarehouseClient from '../../utils/one-warehouse/client';
 import { WarehouseExpressCode } from '../../utils/one-warehouse/client/type/data';
+import BonusPointService from '../services/BonusPointService';
 
 const idSchema = string().required();
 
@@ -236,6 +237,13 @@ class OrderController {
       // Note: 訂單等待付款
       if (order.orderStatus === OrderStatus.WAIT_PAYMENT) {
         const result = await orderService.cancelOrderFromWaitPayment({ id });
+        try {
+          if (order.bonusPointRedemptionId) {
+            await BonusPointService.cancelRedemption(order.bonusPointRedemptionId);
+          }
+        } catch (err) {
+          // bonus point record not found
+        }
         if (result.code === CancelOrderResultCode.SUCCESS) {
           res.sendStatus(httpStatus.ACCEPTED);
         } else {
@@ -253,6 +261,13 @@ class OrderController {
 
         //  Note: 修改訂單狀態
         const result = await orderService.revokeOrderFromWaitDelivery({ id });
+        try {
+          if (order.bonusPointRedemptionId) {
+            await BonusPointService.cancelRedemption(order.bonusPointRedemptionId);
+          }
+        } catch (err) {
+          // bonus point record not found
+        }
         if (result.code === CancelOrderResultCode.SUCCESS) {
           res.sendStatus(httpStatus.ACCEPTED);
         } else {

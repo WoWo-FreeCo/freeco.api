@@ -54,6 +54,7 @@ model User {
   activation    UserActivation?
   dailyChecks   UserDailyCheck[]
   orders        Order[]
+  bonusPoints   BonusPoint[]
   createdAt     DateTime         @default(now()) @db.Timestamp(0)
   updatedAt     DateTime         @updatedAt @db.Timestamp(0)
 
@@ -70,6 +71,36 @@ model AdminUser {
   updatedAt DateTime @updatedAt @db.Timestamp(0)
 
   @@index([email])
+}
+
+enum BonusPointActivityType {
+  // 會員註冊
+  REGISTER
+  // 會員升級
+  UPGRADE
+  // 消費回饋
+  REWARD
+  // 使用紅利
+  REDEEM
+}
+
+model BonusPoint {
+  id           Int                    @id @default(autoincrement())
+  activityType BonusPointActivityType
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId       String                 @db.VarChar(36)
+  points       Int
+  createdAt    DateTime               @default(now()) @db.Timestamp(0)
+  updatedAt    DateTime               @updatedAt @db.Timestamp(0)
+  Order        Order[]
+}
+
+model BonusPointRule {
+  id        Int      @id @default(autoincrement())
+  name      String
+  rule      Int
+  createdAt DateTime @default(now()) @db.Timestamp(0)
+  updatedAt DateTime @updatedAt @db.Timestamp(0)
 }
 
 enum OrderStatus {
@@ -95,19 +126,21 @@ enum DeliveryType {
 }
 
 model Order {
-  id              String            @id @db.VarChar(19)
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  userId          String            @db.VarChar(36)
-  merchantTradeNo String            @unique @db.VarChar(20)
-  relateNumber    String            @unique @db.VarChar(30)
-  orderStatus     OrderStatus
-  consignee       OrderConsignee?
-  orderItems      OrderItem[]
-  price           Int
-  attribute       ProductAttribute
-  createdAt       DateTime          @default(now()) @db.Timestamp(0)
-  updatedAt       DateTime          @updatedAt @db.Timestamp(0)
-  invoiceInfo     OrderInvoiceInfo?
+  id                     String            @id @db.VarChar(19)
+  user                   User              @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId                 String            @db.VarChar(36)
+  merchantTradeNo        String            @unique @db.VarChar(20)
+  relateNumber           String            @unique @db.VarChar(30)
+  orderStatus            OrderStatus
+  consignee              OrderConsignee?
+  orderItems             OrderItem[]
+  price                  Int
+  attribute              ProductAttribute
+  createdAt              DateTime          @default(now()) @db.Timestamp(0)
+  updatedAt              DateTime          @updatedAt @db.Timestamp(0)
+  invoiceInfo            OrderInvoiceInfo?
+  bonusPointRedemption   BonusPoint?       @relation(fields: [bonusPointRedemptionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  bonusPointRedemptionId Int?
 
   @@index([merchantTradeNo])
   @@index([relateNumber])
