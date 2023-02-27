@@ -1,5 +1,5 @@
 import prisma from '../../database/client/prisma';
-import { Product, ProductImage } from '@prisma/client';
+import { Product, ProductImage, ProductMarkdownInfo } from '@prisma/client';
 import { Product as PrismaProduct, ProductAttribute } from '.prisma/client';
 import { Pagination } from '../../utils/helper/pagination';
 
@@ -72,6 +72,13 @@ interface IProductService {
   updateProduct(data: UpdateProductInput): Promise<Product | null>;
   deleteProduct(data: { id: number }): Promise<{ id: number } | null>;
   getProductById(data: { id: number }): Promise<Product | null>;
+  getProductDetailById(data: { id: number }): Promise<
+    | (Product & {
+        productImages: ProductImage[];
+        productMarkdownInfos: ProductMarkdownInfo[];
+      })
+    | null
+  >;
   getProductsByIds(data: { ids: number[] }): Promise<Product[]>;
   getProducts(data: GetProductsInput): Promise<Product[]>;
   checkCreateValidAttribute(
@@ -151,6 +158,23 @@ class ProductService implements IProductService {
     });
   }
 
+  async getProductDetailById(data: { id: number }): Promise<
+    | (Product & {
+        productImages: ProductImage[];
+        productMarkdownInfos: ProductMarkdownInfo[];
+      })
+    | null
+  > {
+    return prisma.product.findFirst({
+      where: {
+        id: data.id,
+      },
+      include: {
+        productImages: true,
+        productMarkdownInfos: true,
+      },
+    });
+  }
   async getProductsByIds(data: { ids: number[] }): Promise<Product[]> {
     const idsFilterQuery = data.ids.map((id) => ({
       id,
