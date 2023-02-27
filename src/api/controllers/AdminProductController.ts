@@ -17,8 +17,8 @@ const fieldSchema = string()
 const indexSchema = number().min(0).required();
 
 interface CreateBody {
-  skuId?: string;
-  categoryId?: number;
+  skuId: string;
+  categoryId: number;
   name: string;
   price: number;
   memberPrice: number;
@@ -28,8 +28,8 @@ interface CreateBody {
 }
 
 const createSchema: ObjectSchema<CreateBody> = object({
-  skuId: string().min(1).max(20).optional(),
-  categoryId: number().optional(),
+  skuId: string().min(1).max(20).required(),
+  categoryId: number().required(),
   name: string().required(),
   price: number().min(0).required(),
   memberPrice: number().min(0).required(),
@@ -64,8 +64,8 @@ const putMarkdownInfoBodySchema: ObjectSchema<PutMarkdownInfoBody> = object({
 });
 
 interface UpdateBody {
-  skuId?: string;
-  categoryId?: number;
+  skuId: string;
+  categoryId: number;
   name: string;
   price: number;
   memberPrice: number;
@@ -74,8 +74,8 @@ interface UpdateBody {
   attribute?: ProductAttribute;
 }
 const updateSchema: ObjectSchema<UpdateBody> = object({
-  skuId: string().min(1).max(20).optional(),
-  categoryId: number().optional(),
+  skuId: string().min(1).max(20).required(),
+  categoryId: number().required(),
   name: string().required(),
   price: number().min(0).required(),
   memberPrice: number().min(0).required(),
@@ -126,7 +126,7 @@ class AdminProductController {
         });
       if (!valid) {
         res.status(httpStatus.BAD_REQUEST).json({
-          message: `Product with attribute [${createBody.attribute}] is invalid. ${message}.`,
+          message: `${message}.`,
         });
         return;
       }
@@ -178,7 +178,7 @@ class AdminProductController {
         });
       if (!valid) {
         res.status(httpStatus.BAD_REQUEST).json({
-          message: `Product with attribute [${updateBody.attribute}] is invalid. ${message}.`,
+          message: `${message}.`,
         });
         return;
       }

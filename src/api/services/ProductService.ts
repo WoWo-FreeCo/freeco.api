@@ -261,26 +261,19 @@ class ProductService implements IProductService {
     switch (data.attribute) {
       case 'GENERAL':
         if (
-          !data.skuId ||
-          !!(await prisma.product.findFirst({
+          await prisma.product.findFirst({
             where: {
               skuId: data.skuId,
             },
-          }))
+          })
         ) {
           return {
             data: false,
-            message: `A ${data.attribute} product need skuId, and skuId should be unique`,
+            message: `The field skuId should be unique`,
           };
         }
         break;
       case 'COLD_CHAIN':
-        if (data.skuId) {
-          return {
-            data: false,
-            message: `A ${data.attribute} product need no skuId`,
-          };
-        }
         break;
       default:
         break;
@@ -293,8 +286,7 @@ class ProductService implements IProductService {
     switch (data.attribute) {
       case 'GENERAL':
         if (
-          !data.skuId ||
-          !!(await prisma.product.findFirst({
+          await prisma.product.findFirst({
             where: {
               AND: [
                 {
@@ -307,21 +299,15 @@ class ProductService implements IProductService {
                 },
               ],
             },
-          }))
+          })
         ) {
           return {
             data: false,
-            message: `A ${data.attribute} product need skuId, and skuId should be unique`,
+            message: `The field skuId should be unique`,
           };
         }
         break;
       case 'COLD_CHAIN':
-        if (data.skuId) {
-          return {
-            data: false,
-            message: `A ${data.attribute} product need no skuId`,
-          };
-        }
         break;
       default:
         break;
