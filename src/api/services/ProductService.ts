@@ -81,6 +81,31 @@ interface IProductService {
   >;
   getProductsByIds(data: { ids: number[] }): Promise<Product[]>;
   getProducts(data: GetProductsInput): Promise<Product[]>;
+  upsertProductImage(data: {
+    productId: number;
+    index: number;
+    image: {
+      index: number;
+      img: string;
+    };
+  }): Promise<ProductImage | null>;
+  deleteProductImage(data: {
+    productId: number;
+    index: number;
+  }): Promise<ProductImage | null>;
+  upsertProductMarkdownInfo(data: {
+    productId: number;
+    index: number;
+    markdownInfo: {
+      index: number;
+      title: string;
+      text: string;
+    };
+  }): Promise<ProductMarkdownInfo | null>;
+  deleteProductMarkdownInfo(data: {
+    productId: number;
+    index: number;
+  }): Promise<ProductMarkdownInfo | null>;
   checkCreateValidAttribute(
     data: CreateProductInput,
   ): Promise<{ data: boolean; message?: string }>;
@@ -136,14 +161,13 @@ class ProductService implements IProductService {
   }
   async createProduct(data: CreateProductInput): Promise<Product | null> {
     try {
-      const product = await prisma.product.create({
+      return await prisma.product.create({
         data: {
           ...data,
           skuId: data.skuId,
           categoryId: data.categoryId,
         },
       });
-      return product;
     } catch (err) {
       console.log(err);
       return null;
@@ -303,6 +327,107 @@ class ProductService implements IProductService {
         break;
     }
     return { data: true };
+  }
+
+  async deleteProductImage(data: {
+    productId: number;
+    index: number;
+  }): Promise<ProductImage | null> {
+    try {
+      return await prisma.productImage.delete({
+        where: {
+          productId_index: {
+            productId: data.productId,
+            index: data.index,
+          },
+        },
+      });
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async deleteProductMarkdownInfo(data: {
+    productId: number;
+    index: number;
+  }): Promise<ProductMarkdownInfo | null> {
+    try {
+      return prisma.productMarkdownInfo.delete({
+        where: {
+          productId_index: {
+            productId: data.productId,
+            index: data.index,
+          },
+        },
+      });
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async upsertProductImage(data: {
+    productId: number;
+    index: number;
+    image: {
+      index: number;
+      img: string;
+    };
+  }): Promise<ProductImage | null> {
+    try {
+      return await prisma.productImage.upsert({
+        create: {
+          productId: data.productId,
+          index: data.index,
+          imagePath: data.image.img,
+        },
+        update: {
+          index: data.image.index,
+          imagePath: data.image.img,
+        },
+        where: {
+          productId_index: {
+            productId: data.productId,
+            index: data.index,
+          },
+        },
+      });
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async upsertProductMarkdownInfo(data: {
+    productId: number;
+    index: number;
+    markdownInfo: {
+      index: number;
+      title: string;
+      text: string;
+    };
+  }): Promise<ProductMarkdownInfo | null> {
+    try {
+      return await prisma.productMarkdownInfo.upsert({
+        create: {
+          productId: data.productId,
+          index: data.index,
+          title: data.markdownInfo.title,
+          text: data.markdownInfo.text,
+        },
+        update: {
+          index: data.markdownInfo.index,
+          title: data.markdownInfo.title,
+          text: data.markdownInfo.text,
+        },
+        where: {
+          productId_index: {
+            productId: data.productId,
+            index: data.index,
+          },
+        },
+      });
+    } catch (err) {
+      return null;
+    }
   }
 }
 

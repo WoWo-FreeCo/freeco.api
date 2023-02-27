@@ -18,6 +18,7 @@ const getManyByCategoryIdQuerySchema: ObjectSchema<GetManyByCategoryIdQuery> =
 
 interface ProductDetail extends Product {
   markdownInfos: {
+    index: number;
     title: string;
     text: string;
   }[];
@@ -32,7 +33,10 @@ interface Product {
   skuId: string | null;
   categoryId: number | null;
   attribute: ProductAttribute;
-  images: string[];
+  images: {
+    index: number;
+    img: string;
+  }[];
 }
 class ProductController {
   async getDetailById(
@@ -69,8 +73,12 @@ class ProductController {
         attribute: productDetail.attribute,
         skuId: productDetail.skuId,
         categoryId: productDetail.categoryId,
-        images: productDetail.productImages.map((img) => img.imagePath),
+        images: productDetail.productImages.map((img) => ({
+          index: img.index,
+          img: img.imagePath,
+        })),
         markdownInfos: productDetail.productMarkdownInfos.map((info) => ({
+          index: info.index,
           title: info.title,
           text: info.text,
         })),
@@ -112,9 +120,10 @@ class ProductController {
         attribute: product.attribute,
         skuId: product.skuId,
         categoryId: product.categoryId,
-        images: product.productImages.map(
-          (productImages) => productImages.imagePath,
-        ),
+        images: product.productImages.map((img) => ({
+          index: img.index,
+          img: img.imagePath,
+        })),
       }));
       res.status(httpStatus.OK).json({ data: responseData });
     } catch (err) {

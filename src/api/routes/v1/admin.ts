@@ -33,6 +33,15 @@ adminProductRouter
   .route('/:id')
   .put(AdminProductController.update)
   .delete(AdminProductController.delete);
+adminProductRouter
+  .put(
+    '/:id/:field/:index',
+    AdminProductController.putProductImagesOrMarkdownInfos,
+  )
+  .delete(
+    '/:id/:field/:index',
+    AdminProductController.deleteProductImagesOrMarkdownInfosByIndex,
+  );
 
 const adminHomeBannerRouter: Router = Router();
 adminHomeBannerRouter.post('/', AdminHomeBannerController.create);
