@@ -190,10 +190,12 @@ class PaymentService implements IPaymentService {
         ...result,
         quantity: result.quantity + item.quantity,
         priceInfo: {
-          price: result.priceInfo.price + item.price,
-          memberPrice: result.priceInfo.memberPrice + item.memberPrice,
-          vipPrice: result.priceInfo.vipPrice + item.vipPrice,
-          svipPrice: result.priceInfo.svipPrice + item.svipPrice,
+          price: result.priceInfo.price + item.price * item.quantity,
+          memberPrice:
+            result.priceInfo.memberPrice + item.memberPrice * item.quantity,
+          vipPrice: result.priceInfo.vipPrice + item.vipPrice * item.quantity,
+          svipPrice:
+            result.priceInfo.svipPrice + item.svipPrice * item.quantity,
         },
       }),
       {
