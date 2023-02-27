@@ -8,6 +8,7 @@ import AdminCheckContentController from '../../controllers/AdminCheckContentCont
 import OrderController from '../../controllers/OrderController';
 import AdminWebPageController from '../../controllers/AdminWebPageController';
 import UserController from '../../controllers/UserController';
+import AdminBonusPointController from '../../controllers/AdminBonusPointController';
 
 const adminUserRouter: Router = Router();
 adminUserRouter
@@ -66,6 +67,11 @@ adminOrderRouter
 const adminWebPageRouter: Router = Router();
 adminWebPageRouter.route('/:id').put(AdminWebPageController.update);
 
+const adminBonusPointRouter: Router = Router();
+adminBonusPointRouter
+  .get('', AdminBonusPointController.get)
+  .put('', AdminBonusPointController.update);
+
 const adminNormalUserRouter: Router = Router();
 adminNormalUserRouter.get('/profile', UserController.getManyProfile);
 
@@ -98,6 +104,11 @@ adminRoute
     '/web-page',
     AuthMiddleware.authenticate('adminUser'),
     adminWebPageRouter,
+  )
+  .use(
+    '/bonus-point',
+    AuthMiddleware.authenticate('adminUser'),
+    adminBonusPointRouter,
   );
 
 export default adminRoute;
