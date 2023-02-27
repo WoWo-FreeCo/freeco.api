@@ -104,6 +104,7 @@ interface SettlementBody {
   products: Product[];
   // Note: 使用紅利消費
   bonusPointRedemption?: number;
+  consignee: Consignee;
 }
 
 const settleSchema: ObjectSchema<SettlementBody> = object({
@@ -112,6 +113,7 @@ const settleSchema: ObjectSchema<SettlementBody> = object({
     .required(),
   products: array().required().of(productSchema),
   bonusPointRedemption: number().positive().optional(),
+  consignee: consigneeSchema
 });
 
 type Settlement = SettlementResult;
@@ -178,6 +180,7 @@ class PaymentController {
       const settlementResult = await PaymentService.settlement({
         user: user,
         userActivation: user.activation,
+        consignee: paymentBody.consignee,
         products: paymentBody.products,
         bonusPointRedemption: paymentBody.bonusPointRedemption ? paymentBody.bonusPointRedemption : 0
       });
