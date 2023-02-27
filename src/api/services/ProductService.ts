@@ -110,22 +110,15 @@ class ProductService implements IProductService {
             productSkuId: product.skuId,
             name: product.name,
             quantity: item.quantity,
-            price: item.quantity * product.price,
-            memberPrice: item.quantity * product.memberPrice,
-            vipPrice: item.quantity * product.vipPrice,
-            svipPrice: item.quantity * product.svipPrice,
+            price: product.price,
+            memberPrice: product.memberPrice,
+            vipPrice: product.vipPrice,
+            svipPrice: product.svipPrice,
           });
         } else {
           itemizationMap.set(product.id, {
             ...settlementItem,
             quantity: settlementItem.quantity + item.quantity,
-            price: settlementItem.price + item.quantity * product.price,
-            memberPrice:
-              settlementItem.memberPrice + item.quantity * product.memberPrice,
-            vipPrice:
-              settlementItem.vipPrice + item.quantity * product.vipPrice,
-            svipPrice:
-              settlementItem.svipPrice + item.quantity * product.svipPrice,
           });
         }
       } else {
@@ -180,7 +173,7 @@ class ProductService implements IProductService {
         categoryId,
       },
       include: {
-        productImages: true
+        productImages: true,
       },
       take,
       skip,

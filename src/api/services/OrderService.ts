@@ -150,7 +150,7 @@ class OrderService implements IOrderService {
             : result.itemPrice + `|${item.paymentPrice}`,
         itemAmount:
           result.itemAmount === ''
-            ? item.paymentPrice.toString()
+            ? (item.paymentPrice * item.quantity).toString()
             : result.itemAmount + `|${item.paymentPrice * item.quantity}`,
       }),
       {
