@@ -1,6 +1,7 @@
 import prisma from '../../database/client/prisma';
-import { Product, ProductImage } from '@prisma/client';
+import { Product, ProductImage, ProductMarkdownInfo } from '@prisma/client';
 import { Product as PrismaProduct, ProductAttribute } from '.prisma/client';
+import { Pagination } from '../../utils/helper/pagination';
 
 interface CreateProductInput {
   categoryId?: number;
@@ -26,10 +27,7 @@ interface UpdateProductInput {
 
 interface GetProductsInput {
   categoryId?: number;
-  pagination: {
-    take: number;
-    skip: number;
-  };
+  pagination: Pagination;
 }
 
 export interface ProductsItemization {
@@ -74,8 +72,40 @@ interface IProductService {
   updateProduct(data: UpdateProductInput): Promise<Product | null>;
   deleteProduct(data: { id: number }): Promise<{ id: number } | null>;
   getProductById(data: { id: number }): Promise<Product | null>;
+  getProductDetailById(data: { id: number }): Promise<
+    | (Product & {
+        productImages: ProductImage[];
+        productMarkdownInfos: ProductMarkdownInfo[];
+      })
+    | null
+  >;
   getProductsByIds(data: { ids: number[] }): Promise<Product[]>;
   getProducts(data: GetProductsInput): Promise<Product[]>;
+  upsertProductImage(data: {
+    productId: number;
+    index: number;
+    image: {
+      index: number;
+      img: string;
+    };
+  }): Promise<ProductImage | null>;
+  deleteProductImage(data: {
+    productId: number;
+    index: number;
+  }): Promise<ProductImage | null>;
+  upsertProductMarkdownInfo(data: {
+    productId: number;
+    index: number;
+    markdownInfo: {
+      index: number;
+      title: string;
+      text: string;
+    };
+  }): Promise<ProductMarkdownInfo | null>;
+  deleteProductMarkdownInfo(data: {
+    productId: number;
+    index: number;
+  }): Promise<ProductMarkdownInfo | null>;
   checkCreateValidAttribute(
     data: CreateProductInput,
   ): Promise<{ data: boolean; message?: string }>;
@@ -131,14 +161,13 @@ class ProductService implements IProductService {
   }
   async createProduct(data: CreateProductInput): Promise<Product | null> {
     try {
-      const product = await prisma.product.create({
+      return await prisma.product.create({
         data: {
           ...data,
           skuId: data.skuId,
           categoryId: data.categoryId,
         },
       });
-      return product;
     } catch (err) {
       console.log(err);
       return null;
@@ -153,6 +182,23 @@ class ProductService implements IProductService {
     });
   }
 
+  async getProductDetailById(data: { id: number }): Promise<
+    | (Product & {
+        productImages: ProductImage[];
+        productMarkdownInfos: ProductMarkdownInfo[];
+      })
+    | null
+  > {
+    return prisma.product.findFirst({
+      where: {
+        id: data.id,
+      },
+      include: {
+        productImages: true,
+        productMarkdownInfos: true,
+      },
+    });
+  }
   async getProductsByIds(data: { ids: number[] }): Promise<Product[]> {
     const idsFilterQuery = data.ids.map((id) => ({
       id,
@@ -215,26 +261,19 @@ class ProductService implements IProductService {
     switch (data.attribute) {
       case 'GENERAL':
         if (
-          !data.skuId ||
-          !!(await prisma.product.findFirst({
+          await prisma.product.findFirst({
             where: {
               skuId: data.skuId,
             },
-          }))
+          })
         ) {
           return {
             data: false,
-            message: `A ${data.attribute} product need skuId, and skuId should be unique`,
+            message: `The field skuId should be unique`,
           };
         }
         break;
       case 'COLD_CHAIN':
-        if (data.skuId) {
-          return {
-            data: false,
-            message: `A ${data.attribute} product need no skuId`,
-          };
-        }
         break;
       default:
         break;
@@ -247,8 +286,7 @@ class ProductService implements IProductService {
     switch (data.attribute) {
       case 'GENERAL':
         if (
-          !data.skuId ||
-          !!(await prisma.product.findFirst({
+          await prisma.product.findFirst({
             where: {
               AND: [
                 {
@@ -261,26 +299,121 @@ class ProductService implements IProductService {
                 },
               ],
             },
-          }))
+          })
         ) {
           return {
             data: false,
-            message: `A ${data.attribute} product need skuId, and skuId should be unique`,
+            message: `The field skuId should be unique`,
           };
         }
         break;
       case 'COLD_CHAIN':
-        if (data.skuId) {
-          return {
-            data: false,
-            message: `A ${data.attribute} product need no skuId`,
-          };
-        }
         break;
       default:
         break;
     }
     return { data: true };
+  }
+
+  async deleteProductImage(data: {
+    productId: number;
+    index: number;
+  }): Promise<ProductImage | null> {
+    try {
+      return await prisma.productImage.delete({
+        where: {
+          productId_index: {
+            productId: data.productId,
+            index: data.index,
+          },
+        },
+      });
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async deleteProductMarkdownInfo(data: {
+    productId: number;
+    index: number;
+  }): Promise<ProductMarkdownInfo | null> {
+    try {
+      return prisma.productMarkdownInfo.delete({
+        where: {
+          productId_index: {
+            productId: data.productId,
+            index: data.index,
+          },
+        },
+      });
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async upsertProductImage(data: {
+    productId: number;
+    index: number;
+    image: {
+      index: number;
+      img: string;
+    };
+  }): Promise<ProductImage | null> {
+    try {
+      return await prisma.productImage.upsert({
+        create: {
+          productId: data.productId,
+          index: data.index,
+          imagePath: data.image.img,
+        },
+        update: {
+          index: data.image.index,
+          imagePath: data.image.img,
+        },
+        where: {
+          productId_index: {
+            productId: data.productId,
+            index: data.index,
+          },
+        },
+      });
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async upsertProductMarkdownInfo(data: {
+    productId: number;
+    index: number;
+    markdownInfo: {
+      index: number;
+      title: string;
+      text: string;
+    };
+  }): Promise<ProductMarkdownInfo | null> {
+    try {
+      return await prisma.productMarkdownInfo.upsert({
+        create: {
+          productId: data.productId,
+          index: data.index,
+          title: data.markdownInfo.title,
+          text: data.markdownInfo.text,
+        },
+        update: {
+          index: data.markdownInfo.index,
+          title: data.markdownInfo.title,
+          text: data.markdownInfo.text,
+        },
+        where: {
+          productId_index: {
+            productId: data.productId,
+            index: data.index,
+          },
+        },
+      });
+    } catch (err) {
+      return null;
+    }
   }
 }
 

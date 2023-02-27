@@ -1,5 +1,6 @@
 import prisma from '../../database/client/prisma';
 import { User, UserActivation } from '@prisma/client';
+import { Pagination } from '../../utils/helper/pagination';
 
 interface CreateUserInput {
   email: string;
@@ -23,6 +24,9 @@ interface IUserService {
   getUserProfileById(data: {
     id: string;
   }): Promise<(User & { activation: UserActivation | null }) | null>;
+  getUsers(data: {
+    pagination: Pagination;
+  }): Promise<(User & { activation: UserActivation | null })[]>;
   createUser(data: CreateUserInput): Promise<User>;
   getUserMemberLevel(data: { activation: UserActivation }): MemberLevel;
   incrementUserCredit(data: { credit: number }): Promise<void>;
@@ -92,6 +96,19 @@ class UserService implements IUserService {
     return user;
   }
 
+  async getUsers({
+    pagination: { take, skip },
+  }: {
+    pagination: Pagination;
+  }): Promise<(User & { activation: UserActivation | null })[]> {
+    return prisma.user.findMany({
+      include: {
+        activation: true,
+      },
+      take,
+      skip,
+    });
+  }
   async createUser(data: CreateUserInput): Promise<User> {
     let recommendCode = UserService.generateRecommendCode();
     let repeatedRecommendCodeUser = prisma.user.findFirst({

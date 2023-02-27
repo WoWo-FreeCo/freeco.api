@@ -1,9 +1,11 @@
 import prisma from '../../database/client/prisma';
 import { UserDailyCheck } from '@prisma/client';
+import UserService from './UserService';
 
 interface ActivateUserActivityInput {
   userId: string;
   kind: 'YouTubeChannel' | 'FacebookGroup' | 'IGFollow' | 'VIP' | 'SVIP';
+  code?: string;
 }
 
 interface DailyCheckInput {
@@ -18,11 +20,9 @@ interface GetLatestDailyCheckInput {
   take: number;
 }
 interface IUserActivityService {
-  activateUserActivity(data: ActivateUserActivityInput): Promise<void>;
-
+  activateUserActivity(data: ActivateUserActivityInput): Promise<boolean>;
   dailyCheck(data: DailyCheckInput): Promise<boolean>;
   getDailyCheckCount(data: GetDailyCheckCountInput): Promise<number>;
-
   getLatestDailyCheck(
     data: GetLatestDailyCheckInput,
   ): Promise<UserDailyCheck[]>;
@@ -31,12 +31,26 @@ interface IUserActivityService {
 class UserActivityService implements IUserActivityService {
   async activateUserActivity({
     kind,
+    code,
     userId,
-  }: ActivateUserActivityInput): Promise<void> {
+  }: ActivateUserActivityInput): Promise<boolean> {
+    let recommendUser;
     const data = {};
     switch (kind) {
       case 'VIP':
-        data['VIPActivated'] = true;
+        if (!code) {
+          return false;
+        }
+        // Note: 綁定 VIP 兌換碼為其他用戶的電子信箱
+        recommendUser = await UserService.getUserByEmail({
+          email: code,
+        });
+        if (recommendUser && recommendUser.id !== userId) {
+          data['VIPActivated'] = true;
+          data['InputVIPCode'] = code;
+        } else {
+          return false;
+        }
         break;
       case 'FacebookGroup':
         data['FacebookGroupActivated'] = true;
@@ -48,7 +62,19 @@ class UserActivityService implements IUserActivityService {
         data['IGFollowActivated'] = true;
         break;
       case 'SVIP':
-        data['SVIPActivated'] = true;
+        if (!code) {
+          return false;
+        }
+        // Note: 綁定 SVIP 兌換碼為其他用戶的統編
+        recommendUser = await UserService.getUserByTaxIDNumber({
+          taxIDNumber: code,
+        });
+        if (recommendUser && recommendUser.id !== userId) {
+          data['SVIPActivated'] = true;
+          data['InputSVIPCode'] = code;
+        } else {
+          return false;
+        }
         break;
     }
 
@@ -58,6 +84,7 @@ class UserActivityService implements IUserActivityService {
       },
       data,
     });
+    return true;
   }
 
   async dailyCheck(data: DailyCheckInput): Promise<boolean> {

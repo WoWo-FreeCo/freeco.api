@@ -1,11 +1,12 @@
 import { CookieOptions, NextFunction, Request, Response } from 'express';
 import UserService, { MemberLevel } from '../services/UserService';
-import { object, ObjectSchema, string, ValidationError } from 'yup';
+import { number, object, ObjectSchema, string, ValidationError } from 'yup';
 import httpStatus from 'http-status';
 import bcrypt from 'bcrypt';
 import jwt from '../../utils/jwt';
 import config from 'config';
 import userService from '../services/UserService';
+import { Pagination } from '../../utils/helper/pagination';
 
 interface RegisterBody {
   email: string;
@@ -39,6 +40,12 @@ const loginSchema: ObjectSchema<LoginBody> = object({
   password: string().required(),
 });
 
+type GetManyProfileQuery = Pagination;
+const getManyProfileQuerySchema: ObjectSchema<GetManyProfileQuery> = object({
+  take: number().min(0).max(200).default(10).optional(),
+  skip: number().min(0).default(0).optional(),
+});
+
 interface ProfileResponse {
   id: string;
   email: string;
@@ -51,9 +58,12 @@ interface ProfileResponse {
   addressThree: string | null;
   rewardCredit: number;
   recommendCode: string;
-  memberLevel: MemberLevel;
-  YouTubeChannelActivated: boolean;
-  FacebookGroupActivated: boolean;
+  memberLevel: MemberLevel | null;
+  YouTubeChannelActivated: boolean | null;
+  FacebookGroupActivated: boolean | null;
+  IGFollowActivated: boolean | null;
+  VIPActivated: boolean | null;
+  SVIPActivated: boolean | null;
 }
 
 // Note:
@@ -277,15 +287,94 @@ class UserController {
           addressThree: user.addressThree,
           rewardCredit: user.rewardCredit,
           recommendCode: user.recommendCode,
+          YouTubeChannelActivated: user.activation
+            ? user.activation.YouTubeChannelActivated
+            : null,
+          FacebookGroupActivated: user.activation
+            ? user.activation.FacebookGroupActivated
+            : null,
+          IGFollowActivated: user.activation
+            ? user.activation.IGFollowActivated
+            : null,
+          VIPActivated: user.activation ? user.activation.VIPActivated : null,
+          SVIPActivated: user.activation ? user.activation.SVIPActivated : null,
           memberLevel,
-          ...user.activation,
         };
-
-        delete profile['userId'];
 
         res.status(httpStatus.OK).json({ data: profile });
       } else {
         res.sendStatus(httpStatus.NOT_FOUND);
+      }
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getManyProfile(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    let getManyProfileQuery: GetManyProfileQuery;
+    try {
+      // Note: Check request query is valid
+      getManyProfileQuery = await getManyProfileQuerySchema.validate(req.query);
+    } catch (err) {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+
+    try {
+      const users = await UserService.getUsers({
+        pagination: { ...getManyProfileQuery },
+      });
+      let anyUserMissActivation = false;
+      const responseData: ProfileResponse[] = users.map((user) => {
+        let memberLevel: MemberLevel | null = null;
+        if (user.activation) {
+          memberLevel = userService.getUserMemberLevel({
+            activation: user.activation,
+          });
+        } else {
+          anyUserMissActivation = true;
+        }
+        return {
+          id: user.id,
+          email: user.email,
+          nickname: user.nickname || null,
+          taxIDNumber: user.taxIDNumber,
+          cellphone: user.cellphone,
+          telephone: user.telephone,
+          addressOne: user.addressOne,
+          addressTwo: user.addressTwo,
+          addressThree: user.addressThree,
+          rewardCredit: user.rewardCredit,
+          recommendCode: user.recommendCode,
+          YouTubeChannelActivated:
+            user.activation !== null
+              ? user.activation.YouTubeChannelActivated
+              : null,
+          FacebookGroupActivated:
+            user.activation !== null
+              ? user.activation.FacebookGroupActivated
+              : null,
+          IGFollowActivated:
+            user.activation !== null ? user.activation.IGFollowActivated : null,
+          VIPActivated:
+            user.activation !== null ? user.activation.VIPActivated : null,
+          SVIPActivated:
+            user.activation !== null ? user.activation.SVIPActivated : null,
+          memberLevel,
+        };
+      });
+      if (anyUserMissActivation) {
+        res.sendStatus(httpStatus.INTERNAL_SERVER_ERROR).json({
+          data: {
+            message: 'One (or more) does not have complete profile data.',
+          },
+        });
+      } else {
+        res.status(httpStatus.OK).json({ data: responseData });
       }
     } catch (err) {
       next(err);

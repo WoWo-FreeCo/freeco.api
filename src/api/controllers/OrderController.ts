@@ -17,8 +17,8 @@ const getManyByAttributeSchema: ObjectSchema<GetManyByAttributeQuery> = object({
   attribute: string()
     .oneOf([ProductAttribute.GENERAL, ProductAttribute.COLD_CHAIN])
     .optional(),
-  take: number().min(0).default(10).optional(),
-  skip: number().min(0).max(200).default(0).optional(),
+  take: number().min(0).max(200).default(10).optional(),
+  skip: number().min(0).default(0).optional(),
 });
 
 interface Order {

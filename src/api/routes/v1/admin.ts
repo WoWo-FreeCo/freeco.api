@@ -7,6 +7,7 @@ import AdminHomeBannerController from '../../controllers/AdminHomeBannerControll
 import AdminCheckContentController from '../../controllers/AdminCheckContentController';
 import OrderController from '../../controllers/OrderController';
 import AdminWebPageController from '../../controllers/AdminWebPageController';
+import UserController from '../../controllers/UserController';
 
 const adminUserRouter: Router = Router();
 adminUserRouter
@@ -32,6 +33,15 @@ adminProductRouter
   .route('/:id')
   .put(AdminProductController.update)
   .delete(AdminProductController.delete);
+adminProductRouter
+  .put(
+    '/:id/:field/:index',
+    AdminProductController.putProductImagesOrMarkdownInfos,
+  )
+  .delete(
+    '/:id/:field/:index',
+    AdminProductController.deleteProductImagesOrMarkdownInfosByIndex,
+  );
 
 const adminHomeBannerRouter: Router = Router();
 adminHomeBannerRouter.post('/', AdminHomeBannerController.create);
@@ -54,13 +64,19 @@ adminOrderRouter
   .get('/:id/logistics/detail', OrderController.getLogisticsDetail);
 
 const adminWebPageRouter: Router = Router();
-adminWebPageRouter
-  .route('/:id')
-  .put(AdminWebPageController.update)
+adminWebPageRouter.route('/:id').put(AdminWebPageController.update);
+
+const adminNormalUserRouter: Router = Router();
+adminNormalUserRouter.get('/profile', UserController.getManyProfile);
 
 const adminRoute: Router = Router();
 adminRoute
   .use('/user', adminUserRouter)
+  .use(
+    '/normal-user',
+    AuthMiddleware.authenticate('adminUser'),
+    adminNormalUserRouter,
+  )
   .use(
     '/product-category',
     AuthMiddleware.authenticate('adminUser'),
