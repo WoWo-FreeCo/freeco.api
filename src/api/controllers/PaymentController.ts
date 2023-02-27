@@ -188,7 +188,7 @@ class PaymentController {
         return;
       }
 
-      if (settlementResult.bonusPointRedemption > settlementResult.paymentPrice) {
+      if (settlementResult.bonusPointRedemption > settlementResult.paymentPrice + settlementResult.bonusPointRedemption) {
         res.status(httpStatus.BAD_REQUEST).send('紅利使用超過折抵上限！');
         return;
       }
@@ -286,7 +286,7 @@ class PaymentController {
       });
 
       if (result) {
-        if (result.bonusPointRedemption > result.paymentPrice) {
+        if (result.bonusPointRedemption > result.paymentPrice + result.bonusPointRedemption) {
           res.status(httpStatus.BAD_REQUEST).send('紅利使用超過折抵上限！');
           return;
         }
