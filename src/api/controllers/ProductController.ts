@@ -9,8 +9,8 @@ type GetManyByCategoryIdQuery = Pagination & { categoryId?: number };
 
 const getManyByCategoryIdQuerySchema: ObjectSchema<GetManyByCategoryIdQuery> =
   object({
-    take: number().min(0).default(10).optional(),
-    skip: number().min(0).max(200).default(0).optional(),
+    take: number().min(0).max(200).default(10).optional(),
+    skip: number().min(0).default(0).optional(),
     categoryId: number().optional(),
   });
 
@@ -58,7 +58,9 @@ class AdminProductController {
         attribute: product.attribute,
         skuId: product.skuId,
         categoryId: product.categoryId,
-        images: product.productImages.map((productImages) => productImages.imagePath)
+        images: product.productImages.map(
+          (productImages) => productImages.imagePath,
+        ),
       }));
       res.status(httpStatus.OK).json({ data: responseData });
     } catch (err) {

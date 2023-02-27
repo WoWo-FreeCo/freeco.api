@@ -1,6 +1,7 @@
 import prisma from '../../database/client/prisma';
 import { Product, ProductImage } from '@prisma/client';
 import { Product as PrismaProduct, ProductAttribute } from '.prisma/client';
+import { Pagination } from '../../utils/helper/pagination';
 
 interface CreateProductInput {
   categoryId?: number;
@@ -26,10 +27,7 @@ interface UpdateProductInput {
 
 interface GetProductsInput {
   categoryId?: number;
-  pagination: {
-    take: number;
-    skip: number;
-  };
+  pagination: Pagination;
 }
 
 export interface ProductsItemization {
