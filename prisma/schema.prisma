@@ -31,6 +31,8 @@ model UserActivation {
   IGFollowActivated       Boolean @default(false)
   VIPActivated            Boolean @default(false)
   SVIPActivated           Boolean @default(false)
+  InputVIPCode            String?
+  InputSVIPCode           String?
   user                    User    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   userId                  String  @unique @db.VarChar(36)
 }

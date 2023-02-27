@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE `UserActivation` ADD COLUMN `InputSVIPCode` VARCHAR(191) NULL,
+    ADD COLUMN `InputVIPCode` VARCHAR(191) NULL;

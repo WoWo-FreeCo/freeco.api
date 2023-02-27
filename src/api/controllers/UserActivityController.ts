@@ -66,80 +66,53 @@ class UserActivityController {
       res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
       return;
     }
-
     try {
       const { id } = req.userdata;
       const user = await UserService.getUserProfileById({ id });
-      let failMessage;
-      let recommendUser;
+      let failMessage = 'Unknown problem.';
+      let activatedResult = false;
       if (user) {
         switch (activateBody.kind) {
           case ActivateKind.A:
             failMessage = 'VIP code is missing or invalid.';
-            if (!activateBody.code) {
-              res.status(httpStatus.BAD_REQUEST).json({
-                message: failMessage,
-              });
-              return;
-            }
-            recommendUser = await UserService.getUserByCellphone({
-              cellphone: activateBody.code,
+            activatedResult = await UserActivityService.activateUserActivity({
+              userId: id,
+              kind: 'VIP',
+              code: activateBody.code,
             });
-            if (recommendUser && recommendUser.id !== user.id) {
-              await UserActivityService.activateUserActivity({
-                userId: id,
-                kind: 'VIP',
-              });
-            } else {
-              res.status(httpStatus.BAD_REQUEST).json({
-                message: failMessage,
-              });
-              return;
-            }
             break;
           case ActivateKind.B:
-            await UserActivityService.activateUserActivity({
+            activatedResult = await UserActivityService.activateUserActivity({
               userId: id,
               kind: 'FacebookGroup',
             });
             break;
           case ActivateKind.C:
-            await UserActivityService.activateUserActivity({
+            activatedResult = await UserActivityService.activateUserActivity({
               userId: id,
               kind: 'YouTubeChannel',
             });
             break;
           case ActivateKind.D:
-            await UserActivityService.activateUserActivity({
+            activatedResult = await UserActivityService.activateUserActivity({
               userId: id,
               kind: 'IGFollow',
             });
             break;
           case ActivateKind.E:
             failMessage = 'SVIP code is missing or invalid.';
-            if (!activateBody.code) {
-              res.status(httpStatus.BAD_REQUEST).json({
-                message: failMessage,
-              });
-              return;
-            }
-            recommendUser = await UserService.getUserByTaxIDNumber({
-              taxIDNumber: activateBody.code,
+            activatedResult = await UserActivityService.activateUserActivity({
+              userId: id,
+              kind: 'SVIP',
+              code: activateBody.code,
             });
-            if (recommendUser && recommendUser.id !== user.id) {
-              await UserActivityService.activateUserActivity({
-                userId: id,
-                kind: 'SVIP',
-              });
-            } else {
-              res.status(httpStatus.BAD_REQUEST).json({
-                message: failMessage,
-              });
-              return;
-            }
             break;
         }
-        res.sendStatus(httpStatus.ACCEPTED);
+        if (activatedResult) {
+          res.sendStatus(httpStatus.ACCEPTED);
+        } else {
+          res.status(httpStatus.BAD_REQUEST).json({ message: failMessage });
+        }
       } else {
         res.sendStatus(httpStatus.NOT_FOUND);
       }
