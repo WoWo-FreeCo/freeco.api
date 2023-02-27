@@ -19,7 +19,8 @@ interface IBonusPointService {
   cancelRedemption(id: number): Promise<void>;
 
   // Bonus Point Rule
-  updateBonusPointRule(ruleId: number, newRule: number): Promise<void>;
+  getBonusPointCashbackRule(): Promise<BonusPointRule | null>;
+  updateBonusPointCashbackRule(newRule: number): Promise<void>;
 }
 
 class BonusPointService implements IBonusPointService {
@@ -126,10 +127,16 @@ class BonusPointService implements IBonusPointService {
     });
   }
 
-  async updateBonusPointRule(ruleId: number, newRule: number): Promise<void> {
+  async getBonusPointCashbackRule(): Promise<BonusPointRule | null> {
+    return await prisma.bonusPointRule.findUnique({
+      where: { id : CASHBACK_RATE_ID }
+    });
+  }
+
+  async updateBonusPointCashbackRule(newRule: number): Promise<void> {
     await prisma.bonusPointRule.update({
       where: {
-        id: ruleId,
+        id: CASHBACK_RATE_ID,
       },
       data: {
         rule: newRule,
