@@ -8,7 +8,8 @@ import { ErrorMiddleware } from './api/middlewares/ErrorMiddleware';
 
 export function createServer(): Application {
   const app = express();
-
+  
+  app.use(express.static(process.cwd() + process.env.STATIC_DIR))
   app.use(bodyParser.urlencoded({ extended: true }));
   app.use(bodyParser.json());
   app.use(cookieParser());
