@@ -34,6 +34,10 @@ class UserActivityService implements IUserActivityService {
     code,
     userId,
   }: ActivateUserActivityInput): Promise<boolean> {
+    const userProfile = await UserService.getUserProfileById({ id: userId });
+    if (!userProfile || !userProfile.activation) {
+      return false;
+    }
     let recommendUser;
     const data = {};
     switch (kind) {
@@ -45,7 +49,11 @@ class UserActivityService implements IUserActivityService {
         recommendUser = await UserService.getUserByEmail({
           email: code,
         });
-        if (recommendUser && recommendUser.id !== userId) {
+        if (
+          !userProfile.activation.VIPActivated &&
+          recommendUser &&
+          recommendUser.id !== userId
+        ) {
           data['VIPActivated'] = true;
           data['InputVIPCode'] = code;
         } else {
@@ -53,12 +61,21 @@ class UserActivityService implements IUserActivityService {
         }
         break;
       case 'FacebookGroup':
+        if (userProfile.activation.FacebookGroupActivated) {
+          return false;
+        }
         data['FacebookGroupActivated'] = true;
         break;
       case 'YouTubeChannel':
+        if (userProfile.activation.YouTubeChannelActivated) {
+          return false;
+        }
         data['YouTubeChannelActivated'] = true;
         break;
       case 'IGFollow':
+        if (userProfile.activation.IGFollowActivated) {
+          return false;
+        }
         data['IGFollowActivated'] = true;
         break;
       case 'SVIP':
@@ -69,7 +86,11 @@ class UserActivityService implements IUserActivityService {
         recommendUser = await UserService.getUserByTaxIDNumber({
           taxIDNumber: code,
         });
-        if (recommendUser && recommendUser.id !== userId) {
+        if (
+          !userProfile.activation.SVIPActivated &&
+          recommendUser &&
+          recommendUser.id !== userId
+        ) {
           data['SVIPActivated'] = true;
           data['InputSVIPCode'] = code;
         } else {

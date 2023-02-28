@@ -70,12 +70,13 @@ class UserActivityController {
     try {
       const { id } = req.userdata;
       const user = await UserService.getUserProfileById({ id });
-      let failMessage = 'Unknown problem.';
+      let failMessage = 'This kind is activated already.';
       let activatedResult = false;
       if (user) {
         switch (activateBody.kind) {
           case ActivateKind.A:
-            failMessage = 'VIP code is missing or invalid.';
+            failMessage =
+              failMessage + 'Or possibly VIP code is missing or invalid.';
             activatedResult = await UserActivityService.activateUserActivity({
               userId: id,
               kind: 'VIP',
@@ -102,7 +103,8 @@ class UserActivityController {
             });
             break;
           case ActivateKind.E:
-            failMessage = 'SVIP code is missing or invalid.';
+            failMessage =
+              failMessage + 'Or possibly SVIP code is missing or invalid.';
             activatedResult = await UserActivityService.activateUserActivity({
               userId: id,
               kind: 'SVIP',
