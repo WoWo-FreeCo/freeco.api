@@ -112,7 +112,7 @@ const settleSchema: ObjectSchema<SettlementBody> = object({
     .oneOf([ProductAttribute.GENERAL, ProductAttribute.COLD_CHAIN])
     .required(),
   products: array().required().of(productSchema),
-  bonusPointRedemption: number().positive().optional(),
+  bonusPointRedemption: number().moreThan(-1).optional(),
   consignee: consigneeSchema
 });
 
@@ -139,7 +139,7 @@ const paymentSchema: ObjectSchema<PaymentBody> = object({
     .required(),
   consignee: consigneeSchema,
   products: array().required().of(productSchema),
-  bonusPointRedemption: number().positive().optional(),
+  bonusPointRedemption: number().moreThan(-1).optional(),
   invoiceParams: invoiceParamsSchema,
   orderNote: string().optional(),
 });
