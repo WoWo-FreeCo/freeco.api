@@ -1,5 +1,5 @@
 import ProductService, { ProductsItemization } from './ProductService';
-import { OrderInvoiceInfo, User, UserActivation } from '@prisma/client';
+import { OrderInvoiceInfo, ProductAttribute, User, UserActivation } from '@prisma/client';
 import moment from 'moment/moment';
 import ecpayOptions from '../../utils/ecpay/conf';
 import EcpayPayment from 'ecpay_aio_nodejs/lib/ecpay_payment';
@@ -42,6 +42,7 @@ export const DELIVERY_ITEM_NAME = '運費';
 export const BONUS_POINT_ITEM_NAME = '紅利折抵';
 
 export interface SettlementInput {
+  attribute: ProductAttribute;
   user: User;
   userActivation: UserActivation;
   consignee: Consignee;
@@ -447,12 +448,12 @@ class PaymentService implements IPaymentService {
     });
     // Note: 使用紅利折抵
     const bonusPointRedemption = data.bonusPointRedemption ? data.bonusPointRedemption : 0;
-
-    const deliveryFee = await PaymentService.deliveryFeeCalculate(
-      checkAddressType(),
-      paymentPrice,
-      quantity
-    );
+    const deliveryFee = (data.attribute == ProductAttribute.COLD_CHAIN) ? 0 : 
+      await PaymentService.deliveryFeeCalculate(
+        checkAddressType(),
+        paymentPrice,
+        quantity
+      );
 
     const settleResult: SettlementResult = {
       items,

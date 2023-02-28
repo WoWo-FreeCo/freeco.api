@@ -178,6 +178,7 @@ class PaymentController {
 
       // Note: Init settlement result
       const settlementResult = await PaymentService.settlement({
+        attribute: paymentBody.attribute,
         user: user,
         userActivation: user.activation,
         consignee: paymentBody.consignee,
