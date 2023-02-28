@@ -189,11 +189,11 @@ class UserService implements IUserService {
     if (data.activation.IGFollowActivated) {
       count++;
     }
-    // Note: SVIP code completed or (綁定條件三選二）
-    if (data.activation.SVIPActivated || count >= 2) {
+    // Note: SVIP code completed and (綁定條件三選二）
+    if (data.activation.SVIPActivated && count >= 2) {
       memberLevel = 'SVIP';
-      // Note: VIP code completed or (綁定條件三選一）
-    } else if (data.activation.VIPActivated || count >= 1) {
+      // Note: VIP code completed and (綁定條件三選一）
+    } else if (data.activation.VIPActivated && count >= 1) {
       memberLevel = 'VIP';
     }
 
