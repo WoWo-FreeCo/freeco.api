@@ -8,6 +8,7 @@ import config from 'config';
 import userService from '../services/UserService';
 import { Pagination } from '../../utils/helper/pagination';
 import BonusPointService from '../services/BonusPointService';
+import userController from './UserController';
 
 interface RegisterBody {
   email: string;
@@ -23,6 +24,26 @@ interface RegisterBody {
 const registerSchema: ObjectSchema<RegisterBody> = object({
   email: string().email().required(),
   password: string().required(),
+  nickname: string().optional(),
+  cellphone: string().required(),
+  telephone: string().optional(),
+  addressOne: string().required(),
+  addressTwo: string().optional(),
+  addressThree: string().optional(),
+});
+
+interface UpdateUserInfoBody {
+  email: string;
+  nickname?: string;
+  cellphone: string;
+  telephone?: string;
+  addressOne: string;
+  addressTwo?: string;
+  addressThree?: string;
+}
+
+const updateUserInfoSchema: ObjectSchema<UpdateUserInfoBody> = object({
+  email: string().email().required(),
   nickname: string().optional(),
   cellphone: string().required(),
   telephone: string().optional(),
@@ -314,6 +335,63 @@ class UserController {
     }
   }
 
+  async updateUserInfo(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    let updateUserInfoBody: UpdateUserInfoBody;
+    try {
+      // Note: Check request body is valid
+      updateUserInfoBody = await updateUserInfoSchema.validate(req.body);
+    } catch (err) {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+    try {
+      const { id } = req.userdata;
+      // Note: Check email or cellphone is used
+      let user = await UserService.getUserByEmail({
+        email: updateUserInfoBody.email,
+      });
+      if (user && user.id !== id) {
+        res.status(httpStatus.CONFLICT).send({
+          message: 'Email is already used.',
+        });
+        return;
+      }
+      user = await UserService.getUserByCellphone({
+        cellphone: updateUserInfoBody.cellphone,
+      });
+      if (user && user.id !== id) {
+        res.status(httpStatus.CONFLICT).send({
+          message: 'Cellphone is already used.',
+        });
+        return;
+      }
+      user = await UserService.updateUser({
+        id,
+        email: updateUserInfoBody.email,
+        nickname: updateUserInfoBody.nickname,
+        cellphone: updateUserInfoBody.cellphone,
+        telephone: updateUserInfoBody.telephone,
+        addressOne: updateUserInfoBody.addressOne,
+        addressTwo: updateUserInfoBody.addressTwo,
+        addressThree: updateUserInfoBody.addressThree,
+      });
+
+      if (!user) {
+        res.status(httpStatus.INTERNAL_SERVER_ERROR).send({
+          message:
+            'Could not update user basic info correctly. Please try it later.',
+        });
+        return;
+      }
+      await userController.getProfile(req, res, next);
+    } catch (err) {
+      next(err);
+    }
+  }
   async getManyProfile(
     req: Request,
     res: Response,

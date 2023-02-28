@@ -14,6 +14,17 @@ interface CreateUserInput {
   addressThree?: string;
 }
 
+interface UpdateUserInfoInput {
+  id: string;
+  email: string;
+  nickname?: string;
+  cellphone: string;
+  telephone?: string;
+  addressOne: string;
+  addressTwo?: string;
+  addressThree?: string;
+}
+
 export type MemberLevel = 'NORMAL' | 'VIP' | 'SVIP';
 
 interface IUserService {
@@ -28,6 +39,7 @@ interface IUserService {
     pagination: Pagination;
   }): Promise<(User & { activation: UserActivation | null })[]>;
   createUser(data: CreateUserInput): Promise<User>;
+  updateUser(data: UpdateUserInfoInput): Promise<User | null>;
   getUserMemberLevel(data: { activation: UserActivation }): MemberLevel;
   incrementUserCredit(data: { credit: number }): Promise<void>;
 }
@@ -145,7 +157,26 @@ class UserService implements IUserService {
 
     return user;
   }
-
+  async updateUser(data: UpdateUserInfoInput): Promise<User | null> {
+    try {
+      return await prisma.user.update({
+        where: {
+          id: data.id,
+        },
+        data: {
+          email: data.email,
+          nickname: data.nickname,
+          cellphone: data.cellphone,
+          telephone: data.telephone,
+          addressOne: data.addressOne,
+          addressTwo: data.addressTwo,
+          addressThree: data.addressThree,
+        },
+      });
+    } catch (err) {
+      return null;
+    }
+  }
   getUserMemberLevel(data: { activation: UserActivation }): MemberLevel {
     let memberLevel: MemberLevel = 'NORMAL';
     let count = 0;

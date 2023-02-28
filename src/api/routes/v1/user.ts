@@ -14,6 +14,11 @@ userRoute
     AuthMiddleware.authenticate('user'),
     UserController.getProfile,
   )
+  .put(
+    '/basic',
+    AuthMiddleware.authenticate('user'),
+    UserController.updateUserInfo,
+  )
   .post(
     '/activity/activate',
     AuthMiddleware.authenticate('user'),
