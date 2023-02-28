@@ -24,10 +24,19 @@ interface IBonusPointService {
 }
 
 class BonusPointService implements IBonusPointService {
+  private async updateUserRewardCredit(userId: string, rewordCredit: number): Promise<void> {
+    const currentBalance = await this.getUserBonusPointBalance(userId);
+    await prisma.user.update({where: {id: userId}, data: {rewardCredit: currentBalance + rewordCredit}});
+  }
+
   async getUserBonusPointBalance(userId: string): Promise<number> {
-    const records: BonusPoint[] = await this.getUserBonusPointRecords(userId);
-    const balance: number = 0 + records.map(record => record.points).reduce((sum, point) => sum + point);
-    return balance;
+    // const records: BonusPoint[] = await this.getUserBonusPointRecords(userId);
+    // const balance: number = 0 + records.map(record => record.points).reduce((sum, point) => sum + point);
+    // return balance;
+
+    // Note: record all bonus point data to `User`.`rewardCredit`
+    const user = await prisma.user.findUnique({where: {id: userId}});
+    return user ? user.rewardCredit : 0;
   }
 
   async getUserBonusPointRecords(userId: string): Promise<BonusPoint[]> {
@@ -116,6 +125,7 @@ class BonusPointService implements IBonusPointService {
   }
 
   private async createBonusPointRecord(activityType: BonusPointActivityType, userId: string, points: number): Promise<BonusPoint> {
+    await this.updateUserRewardCredit(userId, points);
     return await prisma.bonusPoint.create({
       data: {
         activityType: activityType,
