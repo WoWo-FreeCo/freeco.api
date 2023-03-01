@@ -39,6 +39,10 @@ interface IUserService {
   getUsers(data: {
     pagination: Pagination;
   }): Promise<(User & { activation: UserActivation | null })[]>;
+  recommendByUser(data: {
+    id: string;
+    recommendInfo: { code: string };
+  }): Promise<boolean>;
   createUser(data: CreateUserInput): Promise<User>;
   updateUser(data: UpdateUserInfoInput): Promise<User | null>;
   getUserMemberLevel(data: { activation: UserActivation }): MemberLevel;
@@ -132,6 +136,32 @@ class UserService implements IUserService {
       take,
       skip,
     });
+  }
+  async recommendByUser(data: {
+    id: string;
+    recommendInfo: { code: string };
+  }): Promise<boolean> {
+    try {
+      const user = await prisma.user.findUnique({
+        where: {
+          recommendCode: data.recommendInfo.code,
+        },
+      });
+      if (user) {
+        const result = await prisma.user.update({
+          where: {
+            id: data.id,
+          },
+          data: {
+            recommendedBy: user.id,
+          },
+        });
+        return !!result;
+      }
+      return false;
+    } catch (err) {
+      return false;
+    }
   }
   async createUser(data: CreateUserInput): Promise<User> {
     let recommendCode = UserService.generateRecommendCode();

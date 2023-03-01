@@ -9,6 +9,7 @@ import userService from '../services/UserService';
 import { Pagination } from '../../utils/helper/pagination';
 import BonusPointService from '../services/BonusPointService';
 import userController from './UserController';
+import UserActivityService from '../services/UserActivityService';
 
 interface RegisterBody {
   email: string;
@@ -19,6 +20,8 @@ interface RegisterBody {
   addressOne: string;
   addressTwo?: string;
   addressThree?: string;
+  // Note: 推薦帳號
+  recommendedAccount?: string;
 }
 
 const registerSchema: ObjectSchema<RegisterBody> = object({
@@ -30,6 +33,7 @@ const registerSchema: ObjectSchema<RegisterBody> = object({
   addressOne: string().required(),
   addressTwo: string().optional(),
   addressThree: string().optional(),
+  recommendedAccount: string().optional(),
 });
 
 interface UpdateUserInfoBody {
@@ -147,6 +151,15 @@ class UserController {
         ...registerBody,
         password: hashedPassword,
       });
+
+      // Note: 推薦帳號，使用綁定VIP推薦人
+      if (registerBody.recommendedAccount) {
+        await UserActivityService.activateUserActivity({
+          userId: user.id,
+          kind: 'VIP',
+          code: registerBody.recommendedAccount,
+        });
+      }
 
       // Send register bonus points
       await BonusPointService.gainFromRegisterMembership(user.id);
