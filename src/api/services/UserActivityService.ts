@@ -45,9 +45,9 @@ class UserActivityService implements IUserActivityService {
         if (!code) {
           return false;
         }
-        // Note: 綁定 VIP 兌換碼為其他用戶的電子信箱
-        recommendUser = await UserService.getUserByEmail({
-          email: code,
+        // Note: 綁定 VIP 兌換碼為其他用戶的手機號碼
+        recommendUser = await UserService.getUserByCellphone({
+          cellphone: code,
         });
         if (
           !userProfile.activation.VIPActivated &&
