@@ -35,9 +35,10 @@ adminProductRouter
   .put(AdminProductController.update)
   .delete(AdminProductController.delete);
 adminProductRouter
+  .put('/:id/:field', AdminProductController.putProductImagesOrMarkdownInfos)
   .put(
     '/:id/:field/:index',
-    AdminProductController.putProductImagesOrMarkdownInfos,
+    AdminProductController.putProductImagesOrMarkdownInfosByIndex,
   )
   .delete(
     '/:id/:field/:index',

@@ -85,10 +85,15 @@ interface IProductService {
     productId: number;
     index: number;
     image: {
-      index: number;
       img: string;
     };
   }): Promise<ProductImage | null>;
+  putProductImages(data: {
+    productId: number;
+    images: {
+      img: string;
+    }[];
+  }): Promise<ProductImage[]>;
   deleteProductImage(data: {
     productId: number;
     index: number;
@@ -97,11 +102,17 @@ interface IProductService {
     productId: number;
     index: number;
     markdownInfo: {
-      index: number;
       title: string;
       text: string;
     };
   }): Promise<ProductMarkdownInfo | null>;
+  putProductMarkdownInfos(data: {
+    productId: number;
+    markdownInfos: {
+      title: string;
+      text: string;
+    }[];
+  }): Promise<ProductMarkdownInfo[]>;
   deleteProductMarkdownInfo(data: {
     productId: number;
     index: number;
@@ -315,6 +326,51 @@ class ProductService implements IProductService {
     return { data: true };
   }
 
+  async putProductImages(data: {
+    productId: number;
+    images: { img: string }[];
+  }): Promise<ProductImage[]> {
+    await prisma.productImage.deleteMany({
+      where: {
+        productId: data.productId,
+      },
+    });
+    await prisma.productImage.createMany({
+      data: data.images.map((image, index) => ({
+        productId: data.productId,
+        index,
+        imagePath: image.img,
+      })),
+    });
+    return prisma.productImage.findMany({
+      where: {
+        productId: data.productId,
+      },
+    });
+  }
+  async putProductMarkdownInfos(data: {
+    productId: number;
+    markdownInfos: { title: string; text: string }[];
+  }): Promise<ProductMarkdownInfo[]> {
+    await prisma.productMarkdownInfo.deleteMany({
+      where: {
+        productId: data.productId,
+      },
+    });
+    await prisma.productMarkdownInfo.createMany({
+      data: data.markdownInfos.map((markdownInfo, index) => ({
+        productId: data.productId,
+        index,
+        title: markdownInfo.title,
+        text: markdownInfo.text,
+      })),
+    });
+    return prisma.productMarkdownInfo.findMany({
+      where: {
+        productId: data.productId,
+      },
+    });
+  }
   async deleteProductImage(data: {
     productId: number;
     index: number;
@@ -355,7 +411,6 @@ class ProductService implements IProductService {
     productId: number;
     index: number;
     image: {
-      index: number;
       img: string;
     };
   }): Promise<ProductImage | null> {
@@ -367,7 +422,6 @@ class ProductService implements IProductService {
           imagePath: data.image.img,
         },
         update: {
-          index: data.image.index,
           imagePath: data.image.img,
         },
         where: {
@@ -386,7 +440,6 @@ class ProductService implements IProductService {
     productId: number;
     index: number;
     markdownInfo: {
-      index: number;
       title: string;
       text: string;
     };
@@ -400,7 +453,6 @@ class ProductService implements IProductService {
           text: data.markdownInfo.text,
         },
         update: {
-          index: data.markdownInfo.index,
           title: data.markdownInfo.title,
           text: data.markdownInfo.text,
         },
