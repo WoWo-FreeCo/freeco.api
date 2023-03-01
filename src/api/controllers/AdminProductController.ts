@@ -1,5 +1,12 @@
 import { NextFunction, Request, Response } from 'express';
-import { number, object, ObjectSchema, string, ValidationError } from 'yup';
+import {
+  array,
+  number,
+  object,
+  ObjectSchema,
+  string,
+  ValidationError,
+} from 'yup';
 import httpStatus from 'http-status';
 import AdminProductService from '../services/ProductService';
 import { ProductAttribute } from '.prisma/client';
@@ -19,6 +26,7 @@ const indexSchema = number().min(0).required();
 interface CreateBody {
   skuId: string;
   categoryId: number;
+  coverImg?: string;
   name: string;
   price: number;
   memberPrice: number;
@@ -30,6 +38,7 @@ interface CreateBody {
 const createSchema: ObjectSchema<CreateBody> = object({
   skuId: string().min(1).max(20).required(),
   categoryId: number().required(),
+  coverImg: string().optional(),
   name: string().required(),
   price: number().min(0).required(),
   memberPrice: number().min(0).required(),
@@ -42,30 +51,43 @@ const createSchema: ObjectSchema<CreateBody> = object({
 });
 
 interface PutImageBody {
-  index: number;
   img: string;
+}
+interface PutImagesListBody {
+  images: PutImageBody[];
 }
 
 const putImageBodySchema: ObjectSchema<PutImageBody> = object({
-  index: number().min(0).required(),
   img: string().required(),
 });
 
+const putImageListBodySchema: ObjectSchema<PutImagesListBody> = object({
+  images: array().of(putImageBodySchema).required(),
+});
+
 interface PutMarkdownInfoBody {
-  index: number;
   title: string;
   text: string;
 }
 
+interface PutMarkdownInfoListBody {
+  markdownInfos: PutMarkdownInfoBody[];
+}
+
 const putMarkdownInfoBodySchema: ObjectSchema<PutMarkdownInfoBody> = object({
-  index: number().min(0).required(),
   title: string().required(),
   text: string().required(),
 });
 
+const putMarkdownInfoListBodySchema: ObjectSchema<PutMarkdownInfoListBody> =
+  object({
+    markdownInfos: array().of(putMarkdownInfoBodySchema).required(),
+  });
+
 interface UpdateBody {
   skuId: string;
   categoryId: number;
+  coverImg?: string;
   name: string;
   price: number;
   memberPrice: number;
@@ -76,6 +98,7 @@ interface UpdateBody {
 const updateSchema: ObjectSchema<UpdateBody> = object({
   skuId: string().min(1).max(20).required(),
   categoryId: number().required(),
+  coverImg: string().optional(),
   name: string().required(),
   price: number().min(0).required(),
   memberPrice: number().min(0).required(),
@@ -88,24 +111,27 @@ const updateSchema: ObjectSchema<UpdateBody> = object({
 });
 
 interface ProductImage {
-  index: number;
   img: string;
 }
 
 interface ProductMarkdownInfo {
-  index: number;
   title: string;
   text: string;
 }
 interface Product {
   id: number;
   skuId: string | null;
+  categoryId: number | null;
+  coverImg: string | null;
   name: string;
   price: number;
   memberPrice: number;
   vipPrice: number;
   svipPrice: number;
   attribute: ProductAttribute;
+  images: {
+    img: string;
+  }[];
 }
 
 class AdminProductController {
@@ -138,12 +164,17 @@ class AdminProductController {
         const responseData: Product = {
           id: product.id,
           skuId: product.skuId,
+          categoryId: product.categoryId,
+          coverImg: product.coverImagePath,
           name: product.name,
           price: product.price,
           memberPrice: product.memberPrice,
           vipPrice: product.vipPrice,
           svipPrice: product.svipPrice,
           attribute: product.attribute,
+          images: product.productImages.map((img) => ({
+            img: img.imagePath,
+          })),
         };
         res.status(httpStatus.CREATED).json({
           data: responseData,
@@ -191,12 +222,17 @@ class AdminProductController {
         const responseData: Product = {
           id: product.id,
           skuId: product.skuId,
+          categoryId: product.categoryId,
+          coverImg: product.coverImagePath,
           name: product.name,
           price: product.price,
           memberPrice: product.memberPrice,
           vipPrice: product.vipPrice,
           svipPrice: product.svipPrice,
           attribute: product.attribute,
+          images: product.productImages.map((img) => ({
+            img: img.imagePath,
+          })),
         };
         res.status(httpStatus.OK).json({ data: responseData });
       } else {
@@ -259,7 +295,36 @@ class AdminProductController {
       };
     }
   }
-  async putProductImagesOrMarkdownInfos(
+
+  static async validateIdField(req: Request): Promise<
+    | {
+        result: 'ok';
+        data: { id: number; field: Field };
+        err: undefined;
+      }
+    | { result: 'error'; data: undefined; err: unknown }
+  > {
+    try {
+      // Note: Check params is valid
+      const id = await idSchema.validate(req.params.id);
+      const field = await fieldSchema.validate(req.params.field);
+      return {
+        result: 'ok',
+        data: {
+          id,
+          field,
+        },
+        err: undefined,
+      };
+    } catch (err) {
+      return {
+        result: 'error',
+        data: undefined,
+        err,
+      };
+    }
+  }
+  async putProductImagesOrMarkdownInfosByIndex(
     req: Request,
     res: Response,
     next: NextFunction,
@@ -274,6 +339,15 @@ class AdminProductController {
 
     try {
       const { id, field, index } = data;
+      const product = await ProductService.getProductById({
+        id,
+      });
+      if (!product) {
+        res
+          .status(httpStatus.BAD_REQUEST)
+          .json({ message: 'Product id is invalid.' });
+      }
+
       if (field === 'images') {
         let imageBody: PutImageBody;
         try {
@@ -289,7 +363,6 @@ class AdminProductController {
           productId: id,
           index: index,
           image: {
-            index: imageBody.index,
             img: imageBody.img,
           },
         });
@@ -299,10 +372,8 @@ class AdminProductController {
             message: 'Id (or index) is invalid',
           });
           return;
-          return;
         }
         const responseData: ProductImage = {
-          index: productImage.index,
           img: productImage.imagePath,
         };
         res.status(httpStatus.OK).json({
@@ -327,7 +398,6 @@ class AdminProductController {
             productId: id,
             index: index,
             markdownInfo: {
-              index: markdownInfoBody.index,
               title: markdownInfoBody.title,
               text: markdownInfoBody.text,
             },
@@ -339,10 +409,105 @@ class AdminProductController {
           return;
         }
         const responseData: ProductMarkdownInfo = {
-          index: productMarkdownInfo.index,
           title: productMarkdownInfo.title,
           text: productMarkdownInfo.text,
         };
+        res.status(httpStatus.OK).json({
+          data: responseData,
+        });
+        return;
+      }
+
+      res.sendStatus(httpStatus.INTERNAL_SERVER_ERROR);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async putProductImagesOrMarkdownInfos(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    const { result, data, err } =
+      // Note: Check params is valid
+      await AdminProductController.validateIdField(req);
+    if (result === 'error') {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+
+    try {
+      const { id, field } = data;
+
+      const product = await ProductService.getProductById({
+        id,
+      });
+      if (!product) {
+        res
+          .status(httpStatus.BAD_REQUEST)
+          .json({ message: 'Product id is invalid.' });
+      }
+
+      if (field === 'images') {
+        let imageListBody: PutImagesListBody;
+        try {
+          // Note: Check request body is valid
+          imageListBody = await putImageListBodySchema.validate(req.body);
+        } catch (err) {
+          res
+            .status(httpStatus.BAD_REQUEST)
+            .send((err as ValidationError).message);
+          return;
+        }
+        const productImages = await ProductService.putProductImages({
+          productId: id,
+          images: imageListBody.images.map((image) => ({
+            img: image.img,
+          })),
+        });
+
+        const responseData: ProductImage[] = productImages.map(
+          (productImage) => ({
+            img: productImage.imagePath,
+          }),
+        );
+
+        res.status(httpStatus.OK).json({
+          data: responseData,
+        });
+        return;
+      }
+
+      if (field === 'markdownInfos') {
+        let markdownInfoListBody: PutMarkdownInfoListBody;
+        try {
+          // Note: Check request body is valid
+          markdownInfoListBody = await putMarkdownInfoListBodySchema.validate(
+            req.body,
+          );
+        } catch (err) {
+          res
+            .status(httpStatus.BAD_REQUEST)
+            .send((err as ValidationError).message);
+          return;
+        }
+        const productMarkdownInfos =
+          await ProductService.putProductMarkdownInfos({
+            productId: id,
+            markdownInfos: markdownInfoListBody.markdownInfos.map(
+              (markdownInfo) => ({
+                title: markdownInfo.title,
+                text: markdownInfo.text,
+              }),
+            ),
+          });
+        const responseData: ProductMarkdownInfo[] = productMarkdownInfos.map(
+          (productMarkdownInfo) => ({
+            title: productMarkdownInfo.title,
+            text: productMarkdownInfo.text,
+          }),
+        );
         res.status(httpStatus.OK).json({
           data: responseData,
         });
@@ -382,7 +547,6 @@ class AdminProductController {
           return;
         }
         const responseData: ProductImage = {
-          index: productImage.index,
           img: productImage.imagePath,
         };
         res.status(httpStatus.OK).json({
@@ -404,7 +568,6 @@ class AdminProductController {
           return;
         }
         const responseData: ProductMarkdownInfo = {
-          index: productMarkdownInfo.index,
           title: productMarkdownInfo.title,
           text: productMarkdownInfo.text,
         };
