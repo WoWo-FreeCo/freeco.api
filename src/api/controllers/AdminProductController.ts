@@ -26,6 +26,7 @@ const indexSchema = number().min(0).required();
 interface CreateBody {
   skuId: string;
   categoryId: number;
+  coverImg?: string;
   name: string;
   price: number;
   memberPrice: number;
@@ -37,6 +38,7 @@ interface CreateBody {
 const createSchema: ObjectSchema<CreateBody> = object({
   skuId: string().min(1).max(20).required(),
   categoryId: number().required(),
+  coverImg: string().optional(),
   name: string().required(),
   price: number().min(0).required(),
   memberPrice: number().min(0).required(),
@@ -85,6 +87,7 @@ const putMarkdownInfoListBodySchema: ObjectSchema<PutMarkdownInfoListBody> =
 interface UpdateBody {
   skuId: string;
   categoryId: number;
+  coverImg?: string;
   name: string;
   price: number;
   memberPrice: number;
@@ -95,6 +98,7 @@ interface UpdateBody {
 const updateSchema: ObjectSchema<UpdateBody> = object({
   skuId: string().min(1).max(20).required(),
   categoryId: number().required(),
+  coverImg: string().optional(),
   name: string().required(),
   price: number().min(0).required(),
   memberPrice: number().min(0).required(),
@@ -117,12 +121,17 @@ interface ProductMarkdownInfo {
 interface Product {
   id: number;
   skuId: string | null;
+  categoryId: number | null;
+  coverImg: string | null;
   name: string;
   price: number;
   memberPrice: number;
   vipPrice: number;
   svipPrice: number;
   attribute: ProductAttribute;
+  images: {
+    img: string;
+  }[];
 }
 
 class AdminProductController {
@@ -155,12 +164,17 @@ class AdminProductController {
         const responseData: Product = {
           id: product.id,
           skuId: product.skuId,
+          categoryId: product.categoryId,
+          coverImg: product.coverImagePath,
           name: product.name,
           price: product.price,
           memberPrice: product.memberPrice,
           vipPrice: product.vipPrice,
           svipPrice: product.svipPrice,
           attribute: product.attribute,
+          images: product.productImages.map((img) => ({
+            img: img.imagePath,
+          })),
         };
         res.status(httpStatus.CREATED).json({
           data: responseData,
@@ -208,12 +222,17 @@ class AdminProductController {
         const responseData: Product = {
           id: product.id,
           skuId: product.skuId,
+          categoryId: product.categoryId,
+          coverImg: product.coverImagePath,
           name: product.name,
           price: product.price,
           memberPrice: product.memberPrice,
           vipPrice: product.vipPrice,
           svipPrice: product.svipPrice,
           attribute: product.attribute,
+          images: product.productImages.map((img) => ({
+            img: img.imagePath,
+          })),
         };
         res.status(httpStatus.OK).json({ data: responseData });
       } else {

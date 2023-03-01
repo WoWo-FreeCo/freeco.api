@@ -234,6 +234,7 @@ model Product {
   id                   Int                   @id @default(autoincrement())
   skuId                String?               @unique @db.VarChar(20)
   name                 String
+  coverImagePath       String?
   price                Int
   memberPrice          Int
   vipPrice             Int

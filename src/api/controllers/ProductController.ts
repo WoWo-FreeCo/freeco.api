@@ -18,23 +18,22 @@ const getManyByCategoryIdQuerySchema: ObjectSchema<GetManyByCategoryIdQuery> =
 
 interface ProductDetail extends Product {
   markdownInfos: {
-    index: number;
     title: string;
     text: string;
   }[];
 }
 interface Product {
   id: number;
+  skuId: string | null;
+  categoryId: number | null;
+  coverImg: string | null;
   name: string;
   price: number;
   memberPrice: number;
   vipPrice: number;
   svipPrice: number;
-  skuId: string | null;
-  categoryId: number | null;
   attribute: ProductAttribute;
   images: {
-    index: number;
     img: string;
   }[];
 }
@@ -72,13 +71,12 @@ class ProductController {
         svipPrice: productDetail.svipPrice,
         attribute: productDetail.attribute,
         skuId: productDetail.skuId,
-        categoryId: productDetail.categoryId,
+        categoryId: productDetail.categoryId || null,
+        coverImg: productDetail.coverImagePath || null,
         images: productDetail.productImages.map((img) => ({
-          index: img.index,
           img: img.imagePath,
         })),
         markdownInfos: productDetail.productMarkdownInfos.map((info) => ({
-          index: info.index,
           title: info.title,
           text: info.text,
         })),
@@ -112,14 +110,15 @@ class ProductController {
       });
       const responseData: Product[] = products.map((product) => ({
         id: product.id,
+        skuId: product.skuId,
+        categoryId: product.categoryId,
+        coverImg: product.coverImagePath,
         name: product.name,
         price: product.price,
         memberPrice: product.memberPrice,
         vipPrice: product.vipPrice,
         svipPrice: product.svipPrice,
         attribute: product.attribute,
-        skuId: product.skuId,
-        categoryId: product.categoryId,
         images: product.productImages.map((img) => ({
           index: img.index,
           img: img.imagePath,

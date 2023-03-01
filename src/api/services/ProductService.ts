@@ -6,6 +6,7 @@ import { Pagination } from '../../utils/helper/pagination';
 interface CreateProductInput {
   categoryId?: number;
   skuId?: string;
+  coverImg?: string;
   name: string;
   price: number;
   memberPrice: number;
@@ -17,6 +18,7 @@ interface UpdateProductInput {
   id: number;
   categoryId?: number;
   skuId?: string;
+  coverImg?: string;
   name: string;
   price: number;
   memberPrice: number;
@@ -49,6 +51,7 @@ interface ProductsItemizationResult {
 interface ProductWithImage {
   id: number;
   skuId: string | null;
+  coverImagePath: string | null;
   name: string;
   price: number;
   memberPrice: number;
@@ -170,13 +173,18 @@ class ProductService implements IProductService {
 
     return { itemizationList, anyProductNotExists };
   }
-  async createProduct(data: CreateProductInput): Promise<Product | null> {
+  async createProduct(
+    data: CreateProductInput,
+  ): Promise<ProductWithImage | null> {
     try {
       return await prisma.product.create({
         data: {
           ...data,
           skuId: data.skuId,
           categoryId: data.categoryId,
+        },
+        include: {
+          productImages: true,
         },
       });
     } catch (err) {
@@ -237,7 +245,9 @@ class ProductService implements IProductService {
     });
   }
 
-  async updateProduct(data: UpdateProductInput): Promise<Product | null> {
+  async updateProduct(
+    data: UpdateProductInput,
+  ): Promise<ProductWithImage | null> {
     try {
       return await prisma.product.update({
         where: {
@@ -246,6 +256,9 @@ class ProductService implements IProductService {
         data: {
           ...data,
           skuId: data.attribute === 'COLD_CHAIN' ? null : data.skuId,
+        },
+        include: {
+          productImages: true,
         },
       });
     } catch (err) {
