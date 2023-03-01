@@ -28,6 +28,7 @@ interface UpdateUserInfoInput {
 export type MemberLevel = 'NORMAL' | 'VIP' | 'SVIP';
 
 interface IUserService {
+  getUserByRecommendCode(data: { recommendCode: string }): Promise<User | null>;
   getUserByEmail(data: { email: string }): Promise<User | null>;
   getUserByCellphone(data: { cellphone: string }): Promise<User | null>;
   getUserByTaxIDNumber(data: { taxIDNumber: string }): Promise<User | null>;
@@ -38,6 +39,10 @@ interface IUserService {
   getUsers(data: {
     pagination: Pagination;
   }): Promise<(User & { activation: UserActivation | null })[]>;
+  recommendByUser(data: {
+    id: string;
+    recommendInfo: { code: string };
+  }): Promise<boolean>;
   createUser(data: CreateUserInput): Promise<User>;
   updateUser(data: UpdateUserInfoInput): Promise<User | null>;
   getUserMemberLevel(data: { activation: UserActivation }): MemberLevel;
@@ -58,6 +63,17 @@ class UserService implements IUserService {
     }
     return result;
   }
+  async getUserByRecommendCode(data: {
+    recommendCode: string;
+  }): Promise<User | null> {
+    const user = await prisma.user.findUnique({
+      where: {
+        recommendCode: data.recommendCode,
+      },
+    });
+    return user;
+  }
+
   async getUserByEmail(data: { email: string }): Promise<User | null> {
     const user = await prisma.user.findFirst({
       where: {
@@ -120,6 +136,32 @@ class UserService implements IUserService {
       take,
       skip,
     });
+  }
+  async recommendByUser(data: {
+    id: string;
+    recommendInfo: { code: string };
+  }): Promise<boolean> {
+    try {
+      const user = await prisma.user.findUnique({
+        where: {
+          recommendCode: data.recommendInfo.code,
+        },
+      });
+      if (user) {
+        const result = await prisma.user.update({
+          where: {
+            id: data.id,
+          },
+          data: {
+            recommendedBy: user.id,
+          },
+        });
+        return !!result;
+      }
+      return false;
+    } catch (err) {
+      return false;
+    }
   }
   async createUser(data: CreateUserInput): Promise<User> {
     let recommendCode = UserService.generateRecommendCode();
