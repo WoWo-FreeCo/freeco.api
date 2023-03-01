@@ -28,6 +28,7 @@ interface UpdateUserInfoInput {
 export type MemberLevel = 'NORMAL' | 'VIP' | 'SVIP';
 
 interface IUserService {
+  getUserByRecommendCode(data: { recommendCode: string }): Promise<User | null>;
   getUserByEmail(data: { email: string }): Promise<User | null>;
   getUserByCellphone(data: { cellphone: string }): Promise<User | null>;
   getUserByTaxIDNumber(data: { taxIDNumber: string }): Promise<User | null>;
@@ -58,6 +59,17 @@ class UserService implements IUserService {
     }
     return result;
   }
+  async getUserByRecommendCode(data: {
+    recommendCode: string;
+  }): Promise<User | null> {
+    const user = await prisma.user.findUnique({
+      where: {
+        recommendCode: data.recommendCode,
+      },
+    });
+    return user;
+  }
+
   async getUserByEmail(data: { email: string }): Promise<User | null> {
     const user = await prisma.user.findFirst({
       where: {

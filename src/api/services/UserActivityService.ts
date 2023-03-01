@@ -45,9 +45,9 @@ class UserActivityService implements IUserActivityService {
         if (!code) {
           return false;
         }
-        // Note: 綁定 VIP 兌換碼為其他用戶的手機號碼
-        recommendUser = await UserService.getUserByCellphone({
-          cellphone: code,
+        // Note: 綁定 VIP 兌換碼為「推薦用戶兌換」
+        recommendUser = await UserService.getUserByRecommendCode({
+          recommendCode: code,
         });
         if (
           !userProfile.activation.VIPActivated &&
@@ -82,7 +82,7 @@ class UserActivityService implements IUserActivityService {
         if (!code) {
           return false;
         }
-        // Note: 綁定 SVIP 兌換碼為其他用戶的統編
+        // Note: 綁定 SVIP 兌換碼為「其他用戶的統編」
         recommendUser = await UserService.getUserByTaxIDNumber({
           taxIDNumber: code,
         });
