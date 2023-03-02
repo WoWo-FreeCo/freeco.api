@@ -168,7 +168,10 @@ class OrderService implements IOrderService {
 
     let bonusPointRedemptionId: number | null = null;
     if (data.bonusPointRedemption > 0) {
-      const bonusPoint = await BonusPointService.redeem(data.userId, data.bonusPointRedemption);
+      const bonusPoint = await BonusPointService.redeem(
+        data.userId,
+        data.bonusPointRedemption,
+      );
       bonusPointRedemptionId = bonusPoint.id;
     }
 
@@ -425,7 +428,7 @@ class OrderService implements IOrderService {
         warehouse_express_code: WarehouseExpressCode['hct_roomtemp-OW'],
       },
       fee_info: {
-        cod_amount: data.consignee.codAmount || undefined,
+        cod_amount: data.consignee.codAmount * 100 || undefined,
         currency_code: data.consignee.currencyCode,
       },
       package_info: {
