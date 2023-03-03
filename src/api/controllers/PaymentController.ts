@@ -1,7 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import {
   array,
-  date,
   number,
   object,
   ObjectSchema,
@@ -12,11 +11,12 @@ import httpStatus from 'http-status';
 import Logger from '../../utils/logger';
 import UserService from '../services/UserService';
 import PaymentService, { SettlementResult } from '../services/PaymentService';
-import OrderService, { Timeslot } from '../services/OrderService';
+import OrderService from '../services/OrderService';
 import config from 'config';
 import { ProductAttribute } from '.prisma/client';
 import { OrderStatus } from '@prisma/client';
 import BonusPointService from '../services/BonusPointService';
+import { Timeslot, timeslotUtility } from '../../utils/helper/timeslot';
 
 interface Product {
   id: number;
@@ -26,11 +26,6 @@ interface Product {
 const productSchema: ObjectSchema<Product> = object({
   id: number().required(),
   quantity: number().required().min(1),
-});
-
-const timeslotSchema: ObjectSchema<Timeslot> = object({
-  date: date().required(),
-  slot: string().required(),
 });
 
 interface Consignee {
@@ -72,7 +67,10 @@ const consigneeSchema: ObjectSchema<Consignee> = object({
   town: string().optional(),
   zipCode: string().optional(),
   senderRemark: string().optional(),
-  requiredDeliveryTimeslots: array().of(timeslotSchema).default([]).optional(),
+  requiredDeliveryTimeslots: array()
+    .of(timeslotUtility.schema)
+    .default([])
+    .optional(),
 });
 
 interface InvoiceParams {
@@ -113,7 +111,7 @@ const settleSchema: ObjectSchema<SettlementBody> = object({
     .required(),
   products: array().required().of(productSchema),
   bonusPointRedemption: number().moreThan(-1).optional(),
-  consignee: consigneeSchema
+  consignee: consigneeSchema,
 });
 
 type Settlement = SettlementResult;
@@ -158,6 +156,7 @@ class PaymentController {
       res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
       return;
     }
+
     try {
       const { id } = req.userdata;
       // Note: Get user information and member level
@@ -167,9 +166,13 @@ class PaymentController {
         return;
       }
 
-      // Note: Check if user has enough amout of bonus points
-      if (paymentBody.bonusPointRedemption && paymentBody.bonusPointRedemption > 0) {
-        const bonusPointBalance = await BonusPointService.getUserBonusPointBalance(id);
+      // Note: Check if user has enough amount of bonus points
+      if (
+        paymentBody.bonusPointRedemption &&
+        paymentBody.bonusPointRedemption > 0
+      ) {
+        const bonusPointBalance =
+          await BonusPointService.getUserBonusPointBalance(id);
         if (paymentBody.bonusPointRedemption > bonusPointBalance) {
           res.status(httpStatus.BAD_REQUEST).send('紅利點數不足！');
           return;
@@ -183,7 +186,9 @@ class PaymentController {
         userActivation: user.activation,
         consignee: paymentBody.consignee,
         products: paymentBody.products,
-        bonusPointRedemption: paymentBody.bonusPointRedemption ? paymentBody.bonusPointRedemption : 0
+        bonusPointRedemption: paymentBody.bonusPointRedemption
+          ? paymentBody.bonusPointRedemption
+          : 0,
       });
       if (!settlementResult) {
         res.status(httpStatus.BAD_REQUEST).json({
@@ -192,7 +197,10 @@ class PaymentController {
         return;
       }
 
-      if (settlementResult.bonusPointRedemption > settlementResult.paymentPrice + settlementResult.bonusPointRedemption) {
+      if (
+        settlementResult.bonusPointRedemption >
+        settlementResult.paymentPrice + settlementResult.bonusPointRedemption
+      ) {
         res.status(httpStatus.BAD_REQUEST).send('紅利使用超過折抵上限！');
         return;
       }
@@ -275,8 +283,12 @@ class PaymentController {
       }
 
       // Note: Check if user has enough amout of bonus points
-      if (settleBody.bonusPointRedemption && settleBody.bonusPointRedemption > 0) {
-        const bonusPointBalance = await BonusPointService.getUserBonusPointBalance(id);
+      if (
+        settleBody.bonusPointRedemption &&
+        settleBody.bonusPointRedemption > 0
+      ) {
+        const bonusPointBalance =
+          await BonusPointService.getUserBonusPointBalance(id);
         if (settleBody.bonusPointRedemption > bonusPointBalance) {
           res.status(httpStatus.BAD_REQUEST).send('紅利點數不足！');
           return;
@@ -290,7 +302,10 @@ class PaymentController {
       });
 
       if (result) {
-        if (result.bonusPointRedemption > result.paymentPrice + result.bonusPointRedemption) {
+        if (
+          result.bonusPointRedemption >
+          result.paymentPrice + result.bonusPointRedemption
+        ) {
           res.status(httpStatus.BAD_REQUEST).send('紅利使用超過折抵上限！');
           return;
         }

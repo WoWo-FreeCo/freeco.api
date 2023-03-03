@@ -1,5 +1,10 @@
 import ProductService, { ProductsItemization } from './ProductService';
-import { OrderInvoiceInfo, ProductAttribute, User, UserActivation } from '@prisma/client';
+import {
+  OrderInvoiceInfo,
+  ProductAttribute,
+  User,
+  UserActivation,
+} from '@prisma/client';
 import moment from 'moment/moment';
 import ecpayOptions from '../../utils/ecpay/conf';
 import EcpayPayment from 'ecpay_aio_nodejs/lib/ecpay_payment';
@@ -8,14 +13,17 @@ import ecpayBaseOptions from '../../utils/ecpay/conf/baseOptions';
 import userService, { MemberLevel } from './UserService';
 import prisma from '../../database/client/prisma';
 import Logger from '../../utils/logger';
-import { AddressType, checkAddressType } from '../../utils/helper/address/index';
-import { 
+import {
+  AddressType,
+  checkAddressType,
+} from '../../utils/helper/address/index';
+import {
   TAIWAN_ISLAND_DELIVERY_FEE_ID,
   OUTLYING_ISLAND_DELIVERY_FEE_ID,
   FREE_DELIVERY_ITEM_THRESHOLD_ID,
-  FREE_DELIVERY_PRICE_THRESHOLD_ID
+  FREE_DELIVERY_PRICE_THRESHOLD_ID,
 } from '../../utils/constant';
-import { Timeslot } from './OrderService';
+import { Timeslot } from '../../utils/helper/timeslot';
 
 interface Consignee {
   deliveryType: 'HOME' | 'STORE';
@@ -248,23 +256,36 @@ class PaymentService implements IPaymentService {
   private static async deliveryFeeCalculate(
     addressType: AddressType,
     paymentPrice: number,
-    quantity: number
+    quantity: number,
   ): Promise<number> {
     // return PaymentService.DEFAULT_DELIVERY_FEE;
     const freeDeliveryItemThreshold = (
-      await prisma.deliveryFeeRule.findFirstOrThrow({where: {id: FREE_DELIVERY_ITEM_THRESHOLD_ID}})
+      await prisma.deliveryFeeRule.findFirstOrThrow({
+        where: { id: FREE_DELIVERY_ITEM_THRESHOLD_ID },
+      })
     ).rule;
     const freeDeliveryPriceThreshold = (
-      await prisma.deliveryFeeRule.findFirstOrThrow({where: {id: FREE_DELIVERY_PRICE_THRESHOLD_ID}})
-    ).rule;  
+      await prisma.deliveryFeeRule.findFirstOrThrow({
+        where: { id: FREE_DELIVERY_PRICE_THRESHOLD_ID },
+      })
+    ).rule;
 
-    if (quantity >= freeDeliveryItemThreshold || paymentPrice >= freeDeliveryPriceThreshold) return 0;
-    
-    return (await prisma.deliveryFeeRule.findFirstOrThrow({
-      where: {
-        id: addressType == AddressType.TaiwanIsland ? TAIWAN_ISLAND_DELIVERY_FEE_ID : OUTLYING_ISLAND_DELIVERY_FEE_ID
-      }
-    })).rule;
+    if (
+      quantity >= freeDeliveryItemThreshold ||
+      paymentPrice >= freeDeliveryPriceThreshold
+    )
+      return 0;
+
+    return (
+      await prisma.deliveryFeeRule.findFirstOrThrow({
+        where: {
+          id:
+            addressType == AddressType.TaiwanIsland
+              ? TAIWAN_ISLAND_DELIVERY_FEE_ID
+              : OUTLYING_ISLAND_DELIVERY_FEE_ID,
+        },
+      })
+    ).rule;
   }
   private static settlementItemsCalculate(data: {
     itemizationList: ProductsItemization[];
@@ -447,13 +468,17 @@ class PaymentService implements IPaymentService {
       memberLevel,
     });
     // Note: 使用紅利折抵
-    const bonusPointRedemption = data.bonusPointRedemption ? data.bonusPointRedemption : 0;
-    const deliveryFee = (data.attribute == ProductAttribute.COLD_CHAIN) ? 0 : 
-      await PaymentService.deliveryFeeCalculate(
-        checkAddressType(),
-        paymentPrice,
-        quantity
-      );
+    const bonusPointRedemption = data.bonusPointRedemption
+      ? data.bonusPointRedemption
+      : 0;
+    const deliveryFee =
+      data.attribute == ProductAttribute.COLD_CHAIN
+        ? 0
+        : await PaymentService.deliveryFeeCalculate(
+            checkAddressType(),
+            paymentPrice,
+            quantity,
+          );
 
     const settleResult: SettlementResult = {
       items,
@@ -491,11 +516,11 @@ class PaymentService implements IPaymentService {
         productId: null,
         productSkuId: null,
         name: BONUS_POINT_ITEM_NAME,
-        price: 0-settleResult.bonusPointRedemption,
-        memberPrice: 0-settleResult.bonusPointRedemption,
-        vipPrice: 0-settleResult.bonusPointRedemption,
-        svipPrice: 0-settleResult.bonusPointRedemption,
-        paymentPrice: 0-settleResult.bonusPointRedemption,
+        price: 0 - settleResult.bonusPointRedemption,
+        memberPrice: 0 - settleResult.bonusPointRedemption,
+        vipPrice: 0 - settleResult.bonusPointRedemption,
+        svipPrice: 0 - settleResult.bonusPointRedemption,
+        paymentPrice: 0 - settleResult.bonusPointRedemption,
         quantity: 1,
       });
       settleResult.quantity += 1;

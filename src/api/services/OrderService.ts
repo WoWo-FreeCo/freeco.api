@@ -13,10 +13,7 @@ import { ProductAttribute } from '.prisma/client';
 import { Pagination } from '../../utils/helper/pagination';
 import { ItemPayment } from './PaymentService';
 import BonusPointService from './BonusPointService';
-export interface Timeslot {
-  date: Date;
-  slot: string;
-}
+import { Timeslot, timeslotUtility } from '../../utils/helper/timeslot';
 interface CreateOrderInput {
   userId: string;
   paymentPrice: number;
@@ -39,6 +36,7 @@ interface CreateOrderInput {
     town?: string;
     zipCode?: string;
     senderRemark?: string;
+    requiredDeliveryTimeslots?: Timeslot[];
   };
   invoiceInfo: {
     customerID?: string;
@@ -175,6 +173,12 @@ class OrderService implements IOrderService {
       bonusPointRedemptionId = bonusPoint.id;
     }
 
+    const { dates: requiredDeliveryDates, slots: requiredDeliveryTimeslots } =
+      data.consignee.requiredDeliveryTimeslots
+        ? timeslotUtility.transformTimeslotsManyTimeslotPersist(
+            data.consignee.requiredDeliveryTimeslots,
+          )
+        : { dates: '', slots: '' };
     return prisma.order.create({
       data: {
         userId: data.userId,
@@ -204,8 +208,8 @@ class OrderService implements IOrderService {
             zipCode: data.consignee.zipCode,
             senderRemark: data.consignee.senderRemark,
             countryCode: this.DEFAULT_COUNTRY_CODE,
-            requiredDeliveryDates: '',
-            requiredDeliveryTimeslots: '',
+            requiredDeliveryDates,
+            requiredDeliveryTimeslots,
             codAmount: 0,
             currencyCode: this.DEFAULT_CURRENCY_CODE,
           },
@@ -400,6 +404,31 @@ class OrderService implements IOrderService {
     consignee: OrderConsignee;
     orderItems: OrderItem[];
   }): Promise<void> {
+    const timeslots: Timeslot[] =
+      data.consignee.requiredDeliveryTimeslots &&
+      data.consignee.requiredDeliveryDates
+        ? timeslotUtility.transformTimeslotsFromManyTimeslotPersist({
+            dates: data.consignee.requiredDeliveryDates,
+            slots: data.consignee.requiredDeliveryTimeslots,
+          })
+        : [];
+    const { required_delivery_dates, required_delivery_timeslots } =
+      timeslots.reduce<{
+        required_delivery_dates: string[];
+        required_delivery_timeslots: string[];
+      }>(
+        (result, timeslot) => {
+          const { date, slot } =
+            timeslotUtility.transformTimeslotSingleTimeslotPersist(timeslot);
+          result.required_delivery_dates.push(date);
+          result.required_delivery_timeslots.push(slot);
+          return result;
+        },
+        {
+          required_delivery_dates: [],
+          required_delivery_timeslots: [],
+        },
+      );
     await OneWarehouseClient.create({
       address_info: {
         consignee_address: data.consignee.addressDetailOne || undefined,
@@ -426,6 +455,8 @@ class OrderService implements IOrderService {
       express_type_info: {
         delivery_type: data.consignee.deliveryType === 'HOME' ? 1 : 4,
         warehouse_express_code: WarehouseExpressCode['hct_roomtemp-OW'],
+        required_delivery_dates,
+        required_delivery_timeslots,
       },
       fee_info: {
         cod_amount: data.consignee.codAmount * 100 || undefined,
