@@ -239,7 +239,9 @@ class OrderController {
         const result = await orderService.cancelOrderFromWaitPayment({ id });
         try {
           if (order.bonusPointRedemptionId) {
-            await BonusPointService.cancelRedemption(order.bonusPointRedemptionId);
+            await BonusPointService.cancelRedemption(
+              order.bonusPointRedemptionId,
+            );
           }
         } catch (err) {
           // bonus point record not found
@@ -254,16 +256,18 @@ class OrderController {
 
       // Note: 訂單完成付款，等待出貨
       if (order.orderStatus === OrderStatus.WAIT_DELIVER) {
+        // Note: 修改訂單狀態
+        const result = await orderService.revokeOrderFromWaitDelivery({ id });
         // TODO:
+        //  後續行為
         //  (1) 綠界退款
         //  (2) 作廢發票
-        //  (3) 取消物流
-
-        //  Note: 修改訂單狀態
-        const result = await orderService.revokeOrderFromWaitDelivery({ id });
+        //  (3) 取消物流 (手動，不實作）
         try {
           if (order.bonusPointRedemptionId) {
-            await BonusPointService.cancelRedemption(order.bonusPointRedemptionId);
+            await BonusPointService.cancelRedemption(
+              order.bonusPointRedemptionId,
+            );
           }
         } catch (err) {
           // bonus point record not found

@@ -5,6 +5,8 @@ import {
   OrderConsignee,
   OrderInvoiceInfo,
   OrderItem,
+  OrderRevokeInvoiceStatus,
+  OrderRevokePaymentStatus,
   OrderStatus,
 } from '@prisma/client';
 import OneWarehouseClient from '../../utils/one-warehouse/client';
@@ -88,7 +90,7 @@ interface IOrderService {
   cancelOrderFromWaitPayment(data: { id: string }): Promise<CancelOrderResult>;
   revokeOrderFromWaitDelivery(data: { id: string }): Promise<CancelOrderResult>;
   completeOrderPaymentFromWaitDelivery(data: { id: string }): Promise<boolean>;
-  revokeOrderFromWaitPayment(data: { id: string }): Promise<boolean>;
+  revokeOrderFromCancelled(data: { id: string }): Promise<boolean>;
   getOrderById(data: {
     id: string;
     restrict?: {
@@ -273,6 +275,22 @@ class OrderService implements IOrderService {
       code: CancelOrderResultCode.SUCCESS,
     };
   }
+  async completeOrderPaymentFromWaitDelivery(data: {
+    id: string;
+  }): Promise<boolean> {
+    const result = await prisma.order.updateMany({
+      where: {
+        id: data.id,
+        orderStatus: OrderStatus.WAIT_PAYMENT,
+      },
+      data: {
+        orderStatus: OrderStatus.WAIT_DELIVER,
+      },
+    });
+
+    return result.count === 1;
+  }
+
   async revokeOrderFromWaitDelivery(data: {
     id: string;
   }): Promise<CancelOrderResult> {
@@ -291,38 +309,49 @@ class OrderService implements IOrderService {
       };
     }
 
+    // Note: 產生退貨資料, 標記為已開立發票
+    await this.initOrderRevoke({
+      id: data.id,
+      invoiceStatus: OrderRevokeInvoiceStatus.WAIT_CANCEL,
+      paymentStatus: OrderRevokePaymentStatus.WAIT_REFUND,
+    });
     return {
       code: CancelOrderResultCode.SUCCESS,
     };
   }
-  async completeOrderPaymentFromWaitDelivery(data: {
-    id: string;
-  }): Promise<boolean> {
+
+  async revokeOrderFromCancelled(data: { id: string }): Promise<boolean> {
     const result = await prisma.order.updateMany({
       where: {
         id: data.id,
-        orderStatus: OrderStatus.WAIT_PAYMENT,
-      },
-      data: {
-        orderStatus: OrderStatus.WAIT_DELIVER,
-      },
-    });
-
-    return result.count === 1;
-  }
-
-  async revokeOrderFromWaitPayment(data: { id: string }): Promise<boolean> {
-    const result = await prisma.order.updateMany({
-      where: {
-        id: data.id,
-        orderStatus: OrderStatus.WAIT_PAYMENT,
+        orderStatus: OrderStatus.CANCELLED,
       },
       data: {
         orderStatus: OrderStatus.REVOKED,
       },
     });
 
+    // Note: 產生退貨資料, 標記為未開立發票
+    await this.initOrderRevoke({
+      id: data.id,
+      invoiceStatus: OrderRevokeInvoiceStatus.UNISSUED,
+      paymentStatus: OrderRevokePaymentStatus.WAIT_REFUND,
+    });
     return result.count === 1;
+  }
+
+  async initOrderRevoke(data: {
+    id: string;
+    invoiceStatus: OrderRevokeInvoiceStatus;
+    paymentStatus: OrderRevokePaymentStatus;
+  }): Promise<void> {
+    await prisma.orderRevoke.create({
+      data: {
+        orderId: data.id,
+        invoiceStatus: data.invoiceStatus,
+        paymentStatus: data.paymentStatus,
+      },
+    });
   }
   async getOrderById(data: {
     id: string;

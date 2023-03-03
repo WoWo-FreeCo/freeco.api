@@ -355,12 +355,13 @@ class PaymentController {
             });
             // Note: 訂單已取消
           } else if (orderDetail.orderStatus === OrderStatus.CANCELLED) {
-            // TODO:
-            //  (1) 綠界退款
-            // Note: 變更 orderStatus 為 REVOKED
-            await OrderService.revokeOrderFromWaitPayment({
+            // Note: revoke order
+            await OrderService.revokeOrderFromCancelled({
               id: orderDetail.id,
             });
+            // TODO: 後續行為
+            //  (1) 綠界退款
+
             // Note: 訂單並未等待付款，也並未取消。該訂單已經付款完畢，卻再次收到來自綠界通知
           } else {
             Logger.error(
