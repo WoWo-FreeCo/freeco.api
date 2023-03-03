@@ -141,6 +141,7 @@ model Order {
   invoiceInfo            OrderInvoiceInfo?
   bonusPointRedemption   BonusPoint?       @relation(fields: [bonusPointRedemptionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   bonusPointRedemptionId Int?
+  revokeInformation      OrderRevoke?
 
   @@index([merchantTradeNo])
   @@index([relateNumber])
@@ -215,6 +216,31 @@ model OrderItem {
   quantity         Int
   productFromId    Product? @relation("productFromId", fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   productFromSkuId Product? @relation("productFromSkuId", fields: [productSkuId], references: [skuId], onDelete: Restrict, onUpdate: Cascade)
+}
+
+enum OrderRevokeInvoiceStatus {
+  // 未開立發票
+  UNISSUED
+  // 等待作廢發票
+  WAIT_CANCEL
+  // 已作廢發票
+  CANCELLED
+}
+
+enum OrderRevokePaymentStatus {
+  // 未付款
+  UNPAIED
+  // 等待退款
+  WAIT_REFUND
+  // 已退款
+  REFUNDED
+}
+
+model OrderRevoke {
+  invoiceStatus OrderRevokeInvoiceStatus
+  paymentStatus OrderRevokePaymentStatus
+  order         Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  orderId       String                   @id @db.VarChar(19)
 }
 
 model ProductCategory {
