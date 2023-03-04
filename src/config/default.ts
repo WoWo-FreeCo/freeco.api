@@ -26,4 +26,9 @@ export default {
   ONE_WAREHOUSE_URL: process.env.ONE_WAREHOUSE_URL,
   ONE_WAREHOUSE_APP_ID: process.env.ONE_WAREHOUSE_APP_ID,
   ONE_WAREHOUSE_ACCESS_TOKEN: process.env.ONE_WAREHOUSE_ACCESS_TOKEN,
+
+  // mailgun domain
+  MAILGUN_DOMAIN: process.env.MAILGUN_DOMAIN,
+  // mailgun key
+  MAILGUN_KEY: process.env.MAILGUN_KEY,
 };
