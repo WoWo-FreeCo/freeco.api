@@ -196,12 +196,18 @@ class PaymentController {
         });
         return;
       }
-
+      if (!settlementResult.inventoryEnough) {
+        res.status(httpStatus.BAD_REQUEST).json({
+          message: 'Any inventory of product is not enough fot this order',
+        });
+      }
       if (
         settlementResult.bonusPointRedemption >
         settlementResult.paymentPrice + settlementResult.bonusPointRedemption
       ) {
-        res.status(httpStatus.BAD_REQUEST).send('紅利使用超過折抵上限！');
+        res.status(httpStatus.BAD_REQUEST).json({
+          message: '紅利使用超過折抵上限！',
+        });
         return;
       }
 
@@ -282,7 +288,7 @@ class PaymentController {
         return;
       }
 
-      // Note: Check if user has enough amout of bonus points
+      // Note: Check if user has enough amount of bonus points
       if (
         settleBody.bonusPointRedemption &&
         settleBody.bonusPointRedemption > 0
@@ -322,6 +328,7 @@ class PaymentController {
       next(err);
     }
   }
+
   async listenResult(
     req: Request,
     res: Response,
@@ -355,12 +362,13 @@ class PaymentController {
             });
             // Note: 訂單已取消
           } else if (orderDetail.orderStatus === OrderStatus.CANCELLED) {
-            // TODO:
-            //  (1) 綠界退款
-            // Note: 變更 orderStatus 為 REVOKED
-            await OrderService.revokeOrderFromWaitPayment({
+            // Note: revoke order
+            await OrderService.revokeOrderFromCancelled({
               id: orderDetail.id,
             });
+            // TODO: 後續行為
+            //  (1) 綠界退款
+
             // Note: 訂單並未等待付款，也並未取消。該訂單已經付款完畢，卻再次收到來自綠界通知
           } else {
             Logger.error(

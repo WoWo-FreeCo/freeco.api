@@ -9,6 +9,7 @@ import OrderController from '../../controllers/OrderController';
 import AdminWebPageController from '../../controllers/AdminWebPageController';
 import UserController from '../../controllers/UserController';
 import AdminBonusPointController from '../../controllers/AdminBonusPointController';
+import AdminProductInventoryController from '../../controllers/AdminProductInventoryController';
 
 const adminUserRouter: Router = Router();
 adminUserRouter
@@ -44,6 +45,10 @@ adminProductRouter
     '/:id/:field/:index',
     AdminProductController.deleteProductImagesOrMarkdownInfosByIndex,
   );
+adminProductRouter.post(
+  '/:id/inventory/add',
+  AdminProductInventoryController.add,
+);
 
 const adminHomeBannerRouter: Router = Router();
 adminHomeBannerRouter.post('/', AdminHomeBannerController.create);
@@ -62,6 +67,7 @@ adminCheckContentRouter
 const adminOrderRouter: Router = Router();
 adminOrderRouter
   .get('', OrderController.getMany)
+  .post('/:id/cancel-invoice', OrderController.cancelInvoice)
   .get('/:id/detail', OrderController.getDetail)
   .get('/:id/logistics/detail', OrderController.getLogisticsDetail);
 
