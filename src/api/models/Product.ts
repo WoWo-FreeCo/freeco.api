@@ -22,6 +22,9 @@ export interface Product {
   vipPrice: number;
   svipPrice: number;
   attribute: ProductAttribute;
+  inventory: {
+    quantity: number;
+  };
   images: ProductImage[];
 }
 

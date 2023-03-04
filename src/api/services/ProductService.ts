@@ -1,5 +1,10 @@
 import prisma from '../../database/client/prisma';
-import { Product, ProductImage, ProductMarkdownInfo } from '@prisma/client';
+import {
+  Product,
+  ProductImage,
+  ProductInventory,
+  ProductMarkdownInfo,
+} from '@prisma/client';
 import { Product as PrismaProduct, ProductAttribute } from '.prisma/client';
 import { Pagination } from '../../utils/helper/pagination';
 
@@ -48,22 +53,6 @@ interface ProductsItemizationResult {
   anyProductNotExists: boolean;
 }
 
-interface ProductWithImage {
-  id: number;
-  skuId: string | null;
-  coverImagePath: string | null;
-  name: string;
-  price: number;
-  memberPrice: number;
-  vipPrice: number;
-  svipPrice: number;
-  attribute: ProductAttribute;
-  categoryId: number | null;
-  createdAt: Date;
-  updatedAt: Date;
-  productImages: ProductImage[];
-}
-
 interface IProductService {
   productsItemization(
     data: {
@@ -71,8 +60,20 @@ interface IProductService {
       quantity: number;
     }[],
   ): Promise<ProductsItemizationResult>;
-  createProduct(data: CreateProductInput): Promise<Product | null>;
-  updateProduct(data: UpdateProductInput): Promise<Product | null>;
+  createProduct(data: CreateProductInput): Promise<
+    | (Product & {
+        productImages: ProductImage[];
+        inventory: ProductInventory | null;
+      })
+    | null
+  >;
+  createProduct(data: CreateProductInput): Promise<
+    | (Product & {
+        productImages: ProductImage[];
+        inventory: ProductInventory | null;
+      })
+    | null
+  >;
   deleteProduct(data: { id: number }): Promise<{ id: number } | null>;
   getProductById(data: { id: number }): Promise<Product | null>;
   getProductDetailById(data: { id: number }): Promise<
@@ -83,7 +84,15 @@ interface IProductService {
     | null
   >;
   getProductsByIds(data: { ids: number[] }): Promise<Product[]>;
-  getProducts(data: GetProductsInput): Promise<Product[]>;
+  getProducts({
+    categoryId,
+    pagination: { take, skip },
+  }: GetProductsInput): Promise<
+    (Product & {
+      productImages: ProductImage[];
+      inventory: ProductInventory | null;
+    })[]
+  >;
   upsertProductImage(data: {
     productId: number;
     index: number;
@@ -173,9 +182,13 @@ class ProductService implements IProductService {
 
     return { itemizationList, anyProductNotExists };
   }
-  async createProduct(
-    data: CreateProductInput,
-  ): Promise<ProductWithImage | null> {
+  async createProduct(data: CreateProductInput): Promise<
+    | (Product & {
+        productImages: ProductImage[];
+        inventory: ProductInventory | null;
+      })
+    | null
+  > {
     try {
       return await prisma.product.create({
         data: {
@@ -190,6 +203,7 @@ class ProductService implements IProductService {
         },
         include: {
           productImages: true,
+          inventory: true,
         },
       });
     } catch (err) {
@@ -210,6 +224,7 @@ class ProductService implements IProductService {
     | (Product & {
         productImages: ProductImage[];
         productMarkdownInfos: ProductMarkdownInfo[];
+        inventory: ProductInventory | null;
       })
     | null
   > {
@@ -220,6 +235,7 @@ class ProductService implements IProductService {
       include: {
         productImages: true,
         productMarkdownInfos: true,
+        inventory: true,
       },
     });
   }
@@ -233,26 +249,35 @@ class ProductService implements IProductService {
       },
     });
   }
-
   async getProducts({
     categoryId,
     pagination: { take, skip },
-  }: GetProductsInput): Promise<ProductWithImage[]> {
+  }: GetProductsInput): Promise<
+    (Product & {
+      productImages: ProductImage[];
+      inventory: ProductInventory | null;
+    })[]
+  > {
     return prisma.product.findMany({
       where: {
         categoryId,
       },
       include: {
         productImages: true,
+        inventory: true,
       },
       take,
       skip,
     });
   }
 
-  async updateProduct(
-    data: UpdateProductInput,
-  ): Promise<ProductWithImage | null> {
+  async updateProduct(data: UpdateProductInput): Promise<
+    | (Product & {
+        productImages: ProductImage[];
+        inventory: ProductInventory | null;
+      })
+    | null
+  > {
     try {
       return await prisma.product.update({
         where: {
@@ -264,6 +289,7 @@ class ProductService implements IProductService {
         },
         include: {
           productImages: true,
+          inventory: true,
         },
       });
     } catch (err) {

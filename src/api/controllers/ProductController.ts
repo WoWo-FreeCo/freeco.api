@@ -36,7 +36,7 @@ class ProductController {
         id,
       });
 
-      if (!productDetail) {
+      if (!productDetail || !productDetail.inventory) {
         res.status(httpStatus.BAD_REQUEST).json({ message: 'Id is invalid.' });
         return;
       }
@@ -52,6 +52,9 @@ class ProductController {
         skuId: productDetail.skuId,
         categoryId: productDetail.categoryId || null,
         coverImg: productDetail.coverImagePath || null,
+        inventory: {
+          quantity: productDetail.inventory.quantity,
+        },
         images: productDetail.productImages.map((img) => ({
           index: img.index,
           img: img.imagePath,
@@ -100,6 +103,9 @@ class ProductController {
         vipPrice: product.vipPrice,
         svipPrice: product.svipPrice,
         attribute: product.attribute,
+        inventory: {
+          quantity: product.inventory!.quantity,
+        },
         images: product.productImages.map((img) => ({
           index: img.index,
           img: img.imagePath,

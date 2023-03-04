@@ -145,7 +145,7 @@ class AdminProductController {
         svipPrice: createBody.svipPrice,
         attribute: createBody.attribute,
       });
-      if (product) {
+      if (product && product.inventory) {
         const responseData: Product = {
           id: product.id,
           skuId: product.skuId,
@@ -157,6 +157,9 @@ class AdminProductController {
           vipPrice: product.vipPrice,
           svipPrice: product.svipPrice,
           attribute: product.attribute,
+          inventory: {
+            quantity: product.inventory.quantity,
+          },
           images: product.productImages.map((img) => ({
             index: img.index,
             img: img.imagePath,
@@ -212,7 +215,7 @@ class AdminProductController {
         svipPrice: updateBody.svipPrice,
         attribute: updateBody.attribute,
       });
-      if (product) {
+      if (product && product.inventory) {
         const responseData: Product = {
           id: product.id,
           skuId: product.skuId,
@@ -224,6 +227,9 @@ class AdminProductController {
           vipPrice: product.vipPrice,
           svipPrice: product.svipPrice,
           attribute: product.attribute,
+          inventory: {
+            quantity: product.inventory.quantity,
+          },
           images: product.productImages.map((img) => ({
             index: img.index,
             img: img.imagePath,
