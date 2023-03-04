@@ -17,6 +17,8 @@ import { Pagination } from '../../utils/helper/pagination';
 import { ItemPayment } from './PaymentService';
 import BonusPointService from './BonusPointService';
 import { Timeslot, timeslotUtility } from '../../utils/helper/timeslot';
+import ProductInventoryService from './ProductInventoryService';
+
 interface CreateOrderInput {
   userId: string;
   paymentPrice: number;
@@ -184,6 +186,17 @@ class OrderService implements IOrderService {
             data.consignee.requiredDeliveryTimeslots,
           )
         : { dates: '', slots: '' };
+
+    // Note: Bad Code！！！
+    data.items.forEach((item) => {
+      if (item.productId) {
+        ProductInventoryService.subtract({
+          productId: item.productId,
+          quantity: item.quantity,
+        });
+      }
+    });
+
     return prisma.order.create({
       data: {
         userId: data.userId,
@@ -256,6 +269,22 @@ class OrderService implements IOrderService {
     });
   }
 
+  async completeOrderPaymentFromWaitDelivery(data: {
+    id: string;
+  }): Promise<boolean> {
+    const result = await prisma.order.updateMany({
+      where: {
+        id: data.id,
+        orderStatus: OrderStatus.WAIT_PAYMENT,
+      },
+      data: {
+        orderStatus: OrderStatus.WAIT_DELIVER,
+      },
+    });
+
+    return result.count === 1;
+  }
+
   async cancelOrderFromWaitPayment(data: {
     id: string;
   }): Promise<CancelOrderResult> {
@@ -274,24 +303,25 @@ class OrderService implements IOrderService {
       };
     }
 
+    // Note: 補回庫存
+    const orderItems = await prisma.orderItem.findMany({
+      where: {
+        orderId: data.id,
+      },
+    });
+    // Note: Bad Code！！！
+    orderItems.forEach((item) => {
+      if (item.productId) {
+        ProductInventoryService.add({
+          productId: item.productId,
+          quantity: item.quantity,
+        });
+      }
+    });
+
     return {
       code: CancelOrderResultCode.SUCCESS,
     };
-  }
-  async completeOrderPaymentFromWaitDelivery(data: {
-    id: string;
-  }): Promise<boolean> {
-    const result = await prisma.order.updateMany({
-      where: {
-        id: data.id,
-        orderStatus: OrderStatus.WAIT_PAYMENT,
-      },
-      data: {
-        orderStatus: OrderStatus.WAIT_DELIVER,
-      },
-    });
-
-    return result.count === 1;
   }
 
   async revokeOrderFromWaitDelivery(data: {
@@ -311,6 +341,21 @@ class OrderService implements IOrderService {
         code: CancelOrderResultCode.CO002,
       };
     }
+    // Note: 補回庫存
+    const orderItems = await prisma.orderItem.findMany({
+      where: {
+        orderId: data.id,
+      },
+    });
+    // Note: Bad Code！！！
+    orderItems.forEach((item) => {
+      if (item.productId) {
+        ProductInventoryService.add({
+          productId: item.productId,
+          quantity: item.quantity,
+        });
+      }
+    });
 
     // Note: 產生退貨資料, 標記為已開立發票
     await this.initOrderRevoke({

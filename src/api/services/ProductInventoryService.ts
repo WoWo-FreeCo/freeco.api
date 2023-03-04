@@ -10,10 +10,14 @@ interface IProductInventoryService {
     productId: number;
     quantity: number;
   }): Promise<ProductInventory | null>;
+
+  checkItemsIfInventoryEnough(data: {
+    items: { productId: number; quantity: number }[];
+  }): Promise<boolean>;
 }
 
 class ProductInventoryService implements IProductInventoryService {
-  static async checkInventoryReady(data: {
+  private static async _checkInventoryPersistReady(data: {
     productId: number;
   }): Promise<ProductInventory | null> {
     const productAndInventory = await prisma.product.findFirst({
@@ -38,14 +42,42 @@ class ProductInventoryService implements IProductInventoryService {
     }
     return productAndInventory.inventory;
   }
+
+  async getManyByProductIds(data: {
+    productIds: number[];
+  }): Promise<ProductInventory[]> {
+    return prisma.productInventory.findMany({
+      where: {
+        productId: { in: data.productIds },
+      },
+    });
+  }
+  async checkItemsIfInventoryEnough(data: {
+    items: { productId: number; quantity: number }[];
+  }): Promise<boolean> {
+    const productIds = data.items.map((item) => item.productId);
+    const inventories = await this.getManyByProductIds({ productIds });
+    const InventoryMap = inventories.reduce((result, inventory) => {
+      result.set(inventory.productId, inventory);
+      return result;
+    }, new Map<number, ProductInventory>());
+    return (
+      data.items.findIndex(({ productId, quantity }) => {
+        const inventory = InventoryMap.get(productId);
+        return !inventory || inventory.quantity < quantity;
+      }) === -1
+    );
+  }
+
   async add(data: {
     productId: number;
     quantity: number;
   }): Promise<ProductInventory | null> {
     try {
-      const inventory = await ProductInventoryService.checkInventoryReady({
-        productId: data.productId,
-      });
+      const inventory =
+        await ProductInventoryService._checkInventoryPersistReady({
+          productId: data.productId,
+        });
       if (inventory === null) {
         return null;
       }
@@ -70,9 +102,10 @@ class ProductInventoryService implements IProductInventoryService {
     quantity: number;
   }): Promise<ProductInventory | null> {
     try {
-      const inventory = await ProductInventoryService.checkInventoryReady({
-        productId: data.productId,
-      });
+      const inventory =
+        await ProductInventoryService._checkInventoryPersistReady({
+          productId: data.productId,
+        });
       if (inventory && inventory.quantity >= data.quantity) {
         return await prisma.productInventory.update({
           where: {

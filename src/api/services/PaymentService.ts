@@ -24,6 +24,7 @@ import {
 } from '../../utils/ecpay/client';
 import OrderService from './OrderService';
 import { parseECPayResponse } from '../../utils/ecpay/common';
+import ProductInventoryService from './ProductInventoryService';
 
 interface Consignee {
   deliveryType: 'HOME' | 'STORE';
@@ -147,6 +148,7 @@ export interface SettlementResult {
   bonusPointRedemption: number;
   quantity: number;
   paymentPrice: number;
+  inventoryEnough: boolean;
 }
 export interface ItemPayment {
   productId: number | null;
@@ -412,6 +414,15 @@ class PaymentService implements IPaymentService {
     // Note: (商品系統)
     const { itemizationList, anyProductNotExists } =
       await ProductService.productsItemization(data.products);
+    const inventoryEnough =
+      await ProductInventoryService.checkItemsIfInventoryEnough({
+        items: itemizationList
+          .filter((i) => i.productId !== null)
+          .map((i: ProductsItemization & { productId: number }) => ({
+            productId: i.productId,
+            quantity: i.quantity,
+          })),
+      });
     if (anyProductNotExists) {
       return null;
     }
@@ -452,6 +463,7 @@ class PaymentService implements IPaymentService {
       priceInfo,
       paymentPrice,
       bonusPointRedemption,
+      inventoryEnough,
     };
 
     // Note: 將運費紀為一筆 item

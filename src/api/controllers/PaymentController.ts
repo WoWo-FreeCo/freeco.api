@@ -196,12 +196,18 @@ class PaymentController {
         });
         return;
       }
-
+      if (!settlementResult.inventoryEnough) {
+        res.status(httpStatus.BAD_REQUEST).json({
+          message: 'Any inventory of product is not enough fot this order',
+        });
+      }
       if (
         settlementResult.bonusPointRedemption >
         settlementResult.paymentPrice + settlementResult.bonusPointRedemption
       ) {
-        res.status(httpStatus.BAD_REQUEST).send('紅利使用超過折抵上限！');
+        res.status(httpStatus.BAD_REQUEST).json({
+          message: '紅利使用超過折抵上限！',
+        });
         return;
       }
 
@@ -282,7 +288,7 @@ class PaymentController {
         return;
       }
 
-      // Note: Check if user has enough amout of bonus points
+      // Note: Check if user has enough amount of bonus points
       if (
         settleBody.bonusPointRedemption &&
         settleBody.bonusPointRedemption > 0
