@@ -322,6 +322,7 @@ class PaymentController {
       next(err);
     }
   }
+
   async listenResult(
     req: Request,
     res: Response,

@@ -5,10 +5,16 @@ import orderService, { CancelOrderResultCode } from '../services/OrderService';
 import httpStatus from 'http-status';
 import { Pagination } from '../../utils/helper/pagination';
 import { ProductAttribute } from '.prisma/client';
-import { DeliveryType, OrderStatus } from '@prisma/client';
+import {
+  DeliveryType,
+  OrderRevokeInvoiceStatus,
+  OrderStatus,
+} from '@prisma/client';
 import OneWarehouseClient from '../../utils/one-warehouse/client';
 import { WarehouseExpressCode } from '../../utils/one-warehouse/client/type/data';
 import BonusPointService from '../services/BonusPointService';
+import Order from '../routes/v1/order';
+import PaymentService from '../services/PaymentService';
 
 const idSchema = string().required();
 
@@ -125,11 +131,8 @@ class OrderController {
     res: Response,
     next: NextFunction,
   ): Promise<void> {
-    let id: string;
-    try {
-      // Note: Check params is valid
-      id = await idSchema.validate(req.params.id);
-    } catch (err) {
+    const { result, data, err } = await OrderController.validateId(req);
+    if (result === 'error') {
       res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
       return;
     }
@@ -137,7 +140,7 @@ class OrderController {
     try {
       const { role, id: userId } = req.userdata;
       const orderDetail = await OrderService.getOrderDetailById({
-        id,
+        id: data.id,
         restrict:
           role === 'USER'
             ? {
@@ -190,21 +193,43 @@ class OrderController {
     }
   }
 
-  async cancel(req: Request, res: Response, next: NextFunction): Promise<void> {
-    let id: string;
+  static async validateId(req: Request): Promise<
+    | {
+        result: 'ok';
+        data: { id: string };
+        err: undefined;
+      }
+    | { result: 'error'; data: undefined; err: unknown }
+  > {
     try {
       // Note: Check params is valid
-      id = await idSchema.validate(req.params.id);
+      const id = await idSchema.validate(req.params.id);
+      return {
+        result: 'ok',
+        data: {
+          id,
+        },
+        err: undefined,
+      };
     } catch (err) {
+      return {
+        result: 'error',
+        data: undefined,
+        err,
+      };
+    }
+  }
+  async cancel(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { result, data, err } = await OrderController.validateId(req);
+    if (result === 'error') {
       res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
       return;
     }
-
     try {
       const { role, id: userId } = req.userdata;
       // Note: Check order exist (or user has the right to access the order)
       const order = await orderService.getOrderById({
-        id,
+        id: data.id,
         restrict:
           role === 'USER'
             ? {
@@ -236,7 +261,7 @@ class OrderController {
 
       // Note: 訂單等待付款
       if (order.orderStatus === OrderStatus.WAIT_PAYMENT) {
-        const result = await orderService.cancelOrderFromWaitPayment({ id });
+        const result = await orderService.cancelOrderFromWaitPayment(data);
         try {
           if (order.bonusPointRedemptionId) {
             await BonusPointService.cancelRedemption(
@@ -257,7 +282,7 @@ class OrderController {
       // Note: 訂單完成付款，等待出貨
       if (order.orderStatus === OrderStatus.WAIT_DELIVER) {
         // Note: 修改訂單狀態
-        const result = await orderService.revokeOrderFromWaitDelivery({ id });
+        const result = await orderService.revokeOrderFromWaitDelivery(data);
         // TODO:
         //  後續行為
         //  (1) 綠界退款
@@ -296,16 +321,49 @@ class OrderController {
     }
   }
 
+  async cancelInvoice(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    const { result, data, err } = await OrderController.validateId(req);
+    if (result === 'error') {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+
+    try {
+      const orderData = await OrderService.getOrderRevokeInformationById(data);
+      if (!orderData) {
+        res.status(httpStatus.NOT_FOUND).json({ message: 'Id is invalid.' });
+        return;
+      }
+      const { revokeInformation } = orderData;
+      if (
+        !revokeInformation ||
+        revokeInformation.invoiceStatus !== OrderRevokeInvoiceStatus.WAIT_CANCEL
+      ) {
+        res.status(httpStatus.BAD_REQUEST).json({
+          message:
+            'The invoice cancellation of this order cannot be processed.',
+        });
+        return;
+      }
+
+      await PaymentService.cancelInvoice({ orderId: data.id });
+      res.sendStatus(httpStatus.ACCEPTED);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async getLogisticsDetail(
     req: Request,
     res: Response,
     next: NextFunction,
   ): Promise<void> {
-    let id: string;
-    try {
-      // Note: Check params is valid
-      id = await idSchema.validate(req.params.id);
-    } catch (err) {
+    const { result, data, err } = await OrderController.validateId(req);
+    if (result === 'error') {
       res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
       return;
     }
@@ -313,7 +371,7 @@ class OrderController {
       const { role, id: userId } = req.userdata;
       // Note: Check order exist (or user has the right to access the order)
       const order = await orderService.getOrderById({
-        id,
+        id: data.id,
         restrict:
           role === 'USER'
             ? {
@@ -328,7 +386,7 @@ class OrderController {
       }
 
       const response = await OneWarehouseClient.detail({
-        order_no: id,
+        order_no: data.id,
         timestamp: Date.now().toString(),
       });
 

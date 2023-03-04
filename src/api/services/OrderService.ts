@@ -5,6 +5,7 @@ import {
   OrderConsignee,
   OrderInvoiceInfo,
   OrderItem,
+  OrderRevoke,
   OrderRevokeInvoiceStatus,
   OrderRevokePaymentStatus,
   OrderStatus,
@@ -113,7 +114,9 @@ interface IOrderService {
     | (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })
     | null
   >;
-
+  getOrderRevokeInformationById(data: {
+    id: string;
+  }): Promise<(Order & { revokeInformation: OrderRevoke | null }) | null>;
   getOrderDetailByMerchantTradeNo(data: {
     merchantTradeNo: string;
   }): Promise<
@@ -404,6 +407,18 @@ class OrderService implements IOrderService {
       include: {
         consignee: true,
         orderItems: true,
+      },
+    });
+  }
+  async getOrderRevokeInformationById(data: {
+    id: string;
+  }): Promise<(Order & { revokeInformation: OrderRevoke | null }) | null> {
+    return prisma.order.findFirst({
+      where: {
+        id: data.id,
+      },
+      include: {
+        revokeInformation: true,
       },
     });
   }

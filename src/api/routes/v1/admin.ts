@@ -62,6 +62,7 @@ adminCheckContentRouter
 const adminOrderRouter: Router = Router();
 adminOrderRouter
   .get('', OrderController.getMany)
+  .post('/:id/cancel-invoice', OrderController.cancelInvoice)
   .get('/:id/detail', OrderController.getDetail)
   .get('/:id/logistics/detail', OrderController.getLogisticsDetail);
 
