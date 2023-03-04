@@ -26,7 +26,7 @@ const indexSchema = number().min(0).required();
 interface CreateBody {
   skuId: string;
   categoryId: number;
-  coverImg?: string;
+  coverImagePath?: string;
   name: string;
   price: number;
   memberPrice: number;
@@ -38,7 +38,7 @@ interface CreateBody {
 const createSchema: ObjectSchema<CreateBody> = object({
   skuId: string().min(1).max(20).required(),
   categoryId: number().required(),
-  coverImg: string().optional(),
+  coverImagePath: string().optional(),
   name: string().required(),
   price: number().min(0).required(),
   memberPrice: number().min(0).required(),
@@ -87,7 +87,7 @@ const putMarkdownInfoListBodySchema: ObjectSchema<PutMarkdownInfoListBody> =
 interface UpdateBody {
   skuId: string;
   categoryId: number;
-  coverImg?: string;
+  coverImagePath?: string;
   name: string;
   price: number;
   memberPrice: number;
@@ -98,7 +98,7 @@ interface UpdateBody {
 const updateSchema: ObjectSchema<UpdateBody> = object({
   skuId: string().min(1).max(20).required(),
   categoryId: number().required(),
-  coverImg: string().optional(),
+  coverImagePath: string().optional(),
   name: string().required(),
   price: number().min(0).required(),
   memberPrice: number().min(0).required(),
@@ -158,7 +158,15 @@ class AdminProductController {
       }
 
       const product = await AdminProductService.createProduct({
-        ...createBody,
+        categoryId: createBody.categoryId,
+        skuId: createBody.skuId,
+        coverImagePath: createBody.coverImagePath,
+        name: createBody.name,
+        price: createBody.price,
+        memberPrice: createBody.memberPrice,
+        vipPrice: createBody.vipPrice,
+        svipPrice: createBody.svipPrice,
+        attribute: createBody.attribute,
       });
       if (product) {
         const responseData: Product = {
@@ -216,7 +224,15 @@ class AdminProductController {
 
       const product = await AdminProductService.updateProduct({
         id,
-        ...updateBody,
+        categoryId: updateBody.categoryId,
+        skuId: updateBody.skuId,
+        coverImagePath: updateBody.coverImagePath,
+        name: updateBody.name,
+        price: updateBody.price,
+        memberPrice: updateBody.memberPrice,
+        vipPrice: updateBody.vipPrice,
+        svipPrice: updateBody.svipPrice,
+        attribute: updateBody.attribute,
       });
       if (product) {
         const responseData: Product = {

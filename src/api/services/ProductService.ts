@@ -6,7 +6,7 @@ import { Pagination } from '../../utils/helper/pagination';
 interface CreateProductInput {
   categoryId?: number;
   skuId?: string;
-  coverImg?: string;
+  coverImagePath?: string;
   name: string;
   price: number;
   memberPrice: number;
@@ -18,7 +18,7 @@ interface UpdateProductInput {
   id: number;
   categoryId?: number;
   skuId?: string;
-  coverImg?: string;
+  coverImagePath?: string;
   name: string;
   price: number;
   memberPrice: number;
