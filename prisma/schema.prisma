@@ -214,8 +214,8 @@ model OrderItem {
   productId        Int?
   productSkuId     String?  @db.VarChar(20)
   quantity         Int
-  productFromId    Product? @relation("productFromId", fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  productFromSkuId Product? @relation("productFromSkuId", fields: [productSkuId], references: [skuId], onDelete: Restrict, onUpdate: Cascade)
+  productFromId    Product? @relation("productFromId", fields: [productId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  productFromSkuId Product? @relation("productFromSkuId", fields: [productSkuId], references: [skuId], onDelete: SetNull, onUpdate: Cascade)
 }
 
 enum OrderRevokeInvoiceStatus {
