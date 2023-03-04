@@ -2,8 +2,8 @@ import { NextFunction, Request, Response } from 'express';
 import { number, object, ObjectSchema, ValidationError } from 'yup';
 import httpStatus from 'http-status';
 import ProductService from '../services/ProductService';
-import { ProductAttribute } from '.prisma/client';
 import { Pagination } from '../../utils/helper/pagination';
+import { Product, ProductDetail } from '../models/Product';
 
 const idSchema = number().required();
 
@@ -16,27 +16,6 @@ const getManyByCategoryIdQuerySchema: ObjectSchema<GetManyByCategoryIdQuery> =
     categoryId: number().optional(),
   });
 
-interface ProductDetail extends Product {
-  markdownInfos: {
-    title: string;
-    text: string;
-  }[];
-}
-interface Product {
-  id: number;
-  skuId: string | null;
-  categoryId: number | null;
-  coverImg: string | null;
-  name: string;
-  price: number;
-  memberPrice: number;
-  vipPrice: number;
-  svipPrice: number;
-  attribute: ProductAttribute;
-  images: {
-    img: string;
-  }[];
-}
 class ProductController {
   async getDetailById(
     req: Request,
@@ -74,9 +53,11 @@ class ProductController {
         categoryId: productDetail.categoryId || null,
         coverImg: productDetail.coverImagePath || null,
         images: productDetail.productImages.map((img) => ({
+          index: img.index,
           img: img.imagePath,
         })),
         markdownInfos: productDetail.productMarkdownInfos.map((info) => ({
+          index: info.index,
           title: info.title,
           text: info.text,
         })),

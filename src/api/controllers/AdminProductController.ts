@@ -11,6 +11,7 @@ import httpStatus from 'http-status';
 import AdminProductService from '../services/ProductService';
 import { ProductAttribute } from '.prisma/client';
 import ProductService from '../services/ProductService';
+import { ProductImage, ProductMarkdownInfo } from '../models/Product';
 
 enum Field {
   MARKDOWN_INFOS = 'markdownInfos',
@@ -110,14 +111,6 @@ const updateSchema: ObjectSchema<UpdateBody> = object({
     .optional(),
 });
 
-interface ProductImage {
-  img: string;
-}
-
-interface ProductMarkdownInfo {
-  title: string;
-  text: string;
-}
 interface Product {
   id: number;
   skuId: string | null;
@@ -390,6 +383,7 @@ class AdminProductController {
           return;
         }
         const responseData: ProductImage = {
+          index: productImage.index,
           img: productImage.imagePath,
         };
         res.status(httpStatus.OK).json({
@@ -425,6 +419,7 @@ class AdminProductController {
           return;
         }
         const responseData: ProductMarkdownInfo = {
+          index: productMarkdownInfo.index,
           title: productMarkdownInfo.title,
           text: productMarkdownInfo.text,
         };
@@ -485,6 +480,7 @@ class AdminProductController {
 
         const responseData: ProductImage[] = productImages.map(
           (productImage) => ({
+            index: productImage.index,
             img: productImage.imagePath,
           }),
         );
@@ -520,6 +516,7 @@ class AdminProductController {
           });
         const responseData: ProductMarkdownInfo[] = productMarkdownInfos.map(
           (productMarkdownInfo) => ({
+            index: productMarkdownInfo.index,
             title: productMarkdownInfo.title,
             text: productMarkdownInfo.text,
           }),
@@ -563,6 +560,7 @@ class AdminProductController {
           return;
         }
         const responseData: ProductImage = {
+          index: productImage.index,
           img: productImage.imagePath,
         };
         res.status(httpStatus.OK).json({
@@ -584,6 +582,7 @@ class AdminProductController {
           return;
         }
         const responseData: ProductMarkdownInfo = {
+          index: productMarkdownInfo.index,
           title: productMarkdownInfo.title,
           text: productMarkdownInfo.text,
         };
