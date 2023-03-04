@@ -182,6 +182,11 @@ class ProductService implements IProductService {
           ...data,
           skuId: data.skuId,
           categoryId: data.categoryId,
+          inventory: {
+            create: {
+              quantity: 0,
+            },
+          },
         },
         include: {
           productImages: true,

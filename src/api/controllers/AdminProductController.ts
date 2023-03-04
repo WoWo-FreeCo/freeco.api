@@ -11,7 +11,7 @@ import httpStatus from 'http-status';
 import AdminProductService from '../services/ProductService';
 import { ProductAttribute } from '.prisma/client';
 import ProductService from '../services/ProductService';
-import { ProductImage, ProductMarkdownInfo } from '../models/Product';
+import { Product, ProductImage, ProductMarkdownInfo } from '../models/Product';
 
 enum Field {
   MARKDOWN_INFOS = 'markdownInfos',
@@ -111,22 +111,6 @@ const updateSchema: ObjectSchema<UpdateBody> = object({
     .optional(),
 });
 
-interface Product {
-  id: number;
-  skuId: string | null;
-  categoryId: number | null;
-  coverImg: string | null;
-  name: string;
-  price: number;
-  memberPrice: number;
-  vipPrice: number;
-  svipPrice: number;
-  attribute: ProductAttribute;
-  images: {
-    img: string;
-  }[];
-}
-
 class AdminProductController {
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     let createBody: CreateBody;
@@ -174,6 +158,7 @@ class AdminProductController {
           svipPrice: product.svipPrice,
           attribute: product.attribute,
           images: product.productImages.map((img) => ({
+            index: img.index,
             img: img.imagePath,
           })),
         };
@@ -240,6 +225,7 @@ class AdminProductController {
           svipPrice: product.svipPrice,
           attribute: product.attribute,
           images: product.productImages.map((img) => ({
+            index: img.index,
             img: img.imagePath,
           })),
         };
