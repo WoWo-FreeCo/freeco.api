@@ -5,7 +5,6 @@ import httpStatus from 'http-status';
 import bcrypt from 'bcrypt';
 import jwt from '../../utils/jwt';
 import config from 'config';
-import userService from '../services/UserService';
 import { Pagination } from '../../utils/helper/pagination';
 import BonusPointService from '../services/BonusPointService';
 import userController from './UserController';
@@ -271,7 +270,7 @@ class UserController {
       }
 
       // Note: Check user exists
-      const user = await userService.getUserById({ ...decoded.sub });
+      const user = await UserService.getUserById({ ...decoded.sub });
       if (!user) {
         res.status(httpStatus.UNAUTHORIZED).send({
           message: failMessage,
