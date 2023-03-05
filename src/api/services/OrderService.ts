@@ -478,6 +478,30 @@ class OrderService implements IOrderService {
       },
     });
   }
+  async getOrderDetails(
+    data: GetOrdersInput,
+  ): Promise<
+    (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })[]
+  > {
+    const {
+      attribute,
+      pagination: { take, skip },
+    } = data;
+    return prisma.order.findMany({
+      where: {
+        attribute,
+      },
+      take,
+      skip,
+      include: {
+        consignee: true,
+        orderItems: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
 
   async getOrderRevokeInformationById(data: {
     id: string;

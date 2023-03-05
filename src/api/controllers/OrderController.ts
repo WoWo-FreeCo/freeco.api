@@ -246,6 +246,81 @@ class OrderController {
     }
   }
 
+  async getManyDetails(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    let getManyByAttributeQuery: GetManyByAttributeQuery;
+    try {
+      // Note: Check request query is valid
+      getManyByAttributeQuery = await getManyByAttributeSchema.validate(
+        req.query,
+      );
+    } catch (err) {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+
+    try {
+      const orderDetails = await OrderService.getOrderDetails({
+        attribute: getManyByAttributeQuery.attribute,
+        pagination: {
+          ...getManyByAttributeQuery,
+        },
+      });
+
+      const responseData: OrderDetail[] = [];
+      let failed = false;
+      orderDetails.every((orderDetail) => {
+        if (!orderDetail.consignee) {
+          failed = true;
+          return false;
+        }
+        return responseData.push({
+          id: orderDetail.id,
+          orderStatus: orderDetail.orderStatus,
+          attribute: orderDetail.attribute,
+          price: orderDetail.price,
+          createdAt: orderDetail.createdAt,
+          consignee: {
+            deliveryType: orderDetail.consignee.deliveryType,
+            name: orderDetail.consignee.name,
+            email: orderDetail.consignee.email,
+            cellphone: orderDetail.consignee.cellphone,
+            addressDetailOne: orderDetail.consignee.addressDetailOne,
+            addressDetailTwo: orderDetail.consignee.addressDetailTwo,
+            province: orderDetail.consignee.province,
+            city: orderDetail.consignee.city,
+            district: orderDetail.consignee.district,
+            town: orderDetail.consignee.town,
+            zipCode: orderDetail.consignee.zipCode,
+            remark: orderDetail.consignee.remark,
+            stationCode: orderDetail.consignee.stationCode,
+            stationName: orderDetail.consignee.stationName,
+            senderRemark: orderDetail.consignee.senderRemark,
+          },
+          items: orderDetail.orderItems.map((item) => ({
+            productId: item.productId,
+            skuId: item.productSkuId,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+          })),
+        });
+      });
+
+      if (failed) {
+        res
+          .send(httpStatus.INTERNAL_SERVER_ERROR)
+          .json({ message: 'Any Order includes a null consignee' });
+      }
+      res.status(httpStatus.OK).json({ data: responseData });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async validateId(req: Request): Promise<
     | {
         result: 'ok';
