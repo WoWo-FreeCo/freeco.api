@@ -189,7 +189,7 @@ class UserController {
         return;
       }
 
-      // Note: Sign access token and refresh token
+      // Note: Sign (new) access token and refresh token
       const accessToken = jwt.sign(
         {
           sub: {
@@ -213,7 +213,7 @@ class UserController {
         },
       );
 
-      // Note: Send access token in cookie
+      // Note: Send (new) access token and refresh token in cookie
       res.cookie('access_token', accessToken, accessTokenCookieOptions);
       res.cookie('refresh_token', refreshToken, refreshTokenCookieOptions);
       res.cookie('logged_in', true, {
@@ -236,12 +236,12 @@ class UserController {
     res: Response,
     next: NextFunction,
   ): Promise<void> {
-    const refreshToken = req.cookies.refresh_token as string;
+    const currentRefreshToken = req.cookies.refresh_token as string;
 
     const failMessage = 'Could not refresh token.';
 
     // Note: Check refresh token is included
-    if (!refreshToken) {
+    if (!currentRefreshToken) {
       res.status(httpStatus.UNAUTHORIZED).send({
         message: failMessage,
       });
@@ -254,7 +254,7 @@ class UserController {
         sub: {
           id: string;
         };
-      }>(refreshToken, 'REFRESH_TOKEN_PUBLIC_KEY');
+      }>(currentRefreshToken, 'REFRESH_TOKEN_PUBLIC_KEY');
       if (!decoded) {
         res.status(httpStatus.UNAUTHORIZED).send({
           message: failMessage,
@@ -271,7 +271,7 @@ class UserController {
         return;
       }
 
-      // Note: Sign new access token
+      // Note: Sign (new) access token and refresh token
       const accessToken = jwt.sign(
         {
           sub: {
@@ -283,9 +283,21 @@ class UserController {
           expiresIn: `${accessTokenExpiresIn}m`,
         },
       );
+      const refreshToken = jwt.sign(
+        {
+          sub: {
+            id: user.id,
+          },
+        },
+        'REFRESH_TOKEN_PRIVATE_KEY',
+        {
+          expiresIn: `${refreshTokenExpiresIn}m`,
+        },
+      );
 
-      // Note: Send access token in cookie
+      // Note: Send (new) access token and refresh token in cookie
       res.cookie('access_token', accessToken, accessTokenCookieOptions);
+      res.cookie('refresh_token', refreshToken, refreshTokenCookieOptions);
       res.cookie('logged_in', true, {
         ...accessTokenCookieOptions,
         httpOnly: false,
