@@ -6,15 +6,21 @@ import httpStatus from 'http-status';
 import { Pagination } from '../../utils/helper/pagination';
 import { ProductAttribute } from '.prisma/client';
 import {
-  DeliveryType,
   OrderRevokeInvoiceStatus,
+  OrderRevokeLogisticsStatus,
+  OrderRevokePaymentStatus,
   OrderStatus,
 } from '@prisma/client';
 import OneWarehouseClient from '../../utils/one-warehouse/client';
-import { WarehouseExpressCode } from '../../utils/one-warehouse/client/type/data';
 import BonusPointService from '../services/BonusPointService';
-import Order from '../routes/v1/order';
 import PaymentService from '../services/PaymentService';
+import {
+  LogisticsDetail,
+  Order,
+  OrderDetail,
+  OrderDetailsIncludesCoverImg,
+  OrderRevokeInformation,
+} from '../models/Order';
 
 const idSchema = string().required();
 
@@ -28,58 +34,63 @@ const getManyByAttributeSchema: ObjectSchema<GetManyByAttributeQuery> = object({
   skip: number().min(0).default(0).optional(),
 });
 
-interface Order {
-  id: string;
+interface UpdateOrderStatusBody {
   orderStatus: OrderStatus;
-  attribute: ProductAttribute;
-  price: number;
-  createdAt: Date;
 }
 
-interface OrderDetail {
-  id: string;
-  orderStatus: OrderStatus;
-  attribute: ProductAttribute;
-  price: number;
-  createdAt: Date;
-  consignee: {
-    deliveryType: DeliveryType;
-    name: string | null;
-    email: string | null;
-    cellphone: string | null;
-    addressDetailOne: string | null;
-    addressDetailTwo: string | null;
-    province: string | null;
-    city: string | null;
-    district: string | null;
-    town: string | null;
-    zipCode: string | null;
-    remark: string | null;
-    stationCode: string | null;
-    stationName: string | null;
-    senderRemark: string | null;
-  };
-  items: {
-    productId: number | null;
-    skuId: string | null;
-    name: string;
-    price: number;
-    quantity: number;
-  }[];
+const updateOrderStatusSchema: ObjectSchema<UpdateOrderStatusBody> = object({
+  orderStatus: string()
+    .oneOf([
+      OrderStatus.WAIT_PAYMENT,
+      OrderStatus.WAIT_DELIVER,
+      OrderStatus.WAIT_RECEIVE,
+      OrderStatus.COMPLETED,
+    ])
+    .required(),
+});
+
+interface UpdateRevokeInvoiceStatusBody {
+  invoiceStatus: OrderRevokeInvoiceStatus;
 }
 
-interface LogisticsDetail {
-  id: string;
-  outboundOrderId: string;
-  packageInfos: {
-    logisticsNo: string;
-    expressNo: string;
-    providerLogisticsCode: WarehouseExpressCode;
-    deliveryType: 'HOME' | 'STORE';
-  }[];
-  outboundTime: Date | null;
-  logisticsStatus: string;
+const updateRevokeInvoiceStatusSchema: ObjectSchema<UpdateRevokeInvoiceStatusBody> =
+  object({
+    invoiceStatus: string()
+      .oneOf([
+        OrderRevokeInvoiceStatus.UNISSUED,
+        OrderRevokeInvoiceStatus.WAIT_CANCEL,
+        OrderRevokeInvoiceStatus.CANCELLED,
+      ])
+      .required(),
+  });
+interface UpdateRevokePaymentStatusBody {
+  paymentStatus: OrderRevokePaymentStatus;
 }
+
+const updateRevokePaymentStatusSchema: ObjectSchema<UpdateRevokePaymentStatusBody> =
+  object({
+    paymentStatus: string()
+      .oneOf([
+        OrderRevokePaymentStatus.UNPAIED,
+        OrderRevokePaymentStatus.WAIT_REFUND,
+        OrderRevokePaymentStatus.REFUNDED,
+      ])
+      .required(),
+  });
+interface UpdateRevokeLogisticsStatusBody {
+  logisticsStatus: OrderRevokeLogisticsStatus;
+}
+
+const updateRevokeLogisticsStatusSchema: ObjectSchema<UpdateRevokeLogisticsStatusBody> =
+  object({
+    logisticsStatus: string()
+      .oneOf([
+        OrderRevokeLogisticsStatus.WAIT_CANCEL,
+        OrderRevokeLogisticsStatus.CANCELLED,
+      ])
+      .required(),
+  });
+
 class OrderController {
   async getMany(
     req: Request,
@@ -126,7 +137,7 @@ class OrderController {
     }
   }
 
-  async getDetail(
+  async getOrderDetailIncludesCoverImg(
     req: Request,
     res: Response,
     next: NextFunction,
@@ -139,15 +150,16 @@ class OrderController {
 
     try {
       const { role, id: userId } = req.userdata;
-      const orderDetail = await OrderService.getOrderDetailById({
-        id: data.id,
-        restrict:
-          role === 'USER'
-            ? {
-                userId,
-              }
-            : undefined,
-      });
+      const orderDetail =
+        await OrderService.getOrderDetailIncludesCoverImagePathById({
+          id: data.id,
+          restrict:
+            role === 'USER'
+              ? {
+                  userId,
+                }
+              : undefined,
+        });
       if (!orderDetail) {
         res.status(httpStatus.BAD_REQUEST).json({ message: 'Id is invalid.' });
         return;
@@ -156,7 +168,7 @@ class OrderController {
         res.sendStatus(httpStatus.INTERNAL_SERVER_ERROR);
         return;
       }
-      const responseData: OrderDetail = {
+      const responseData: OrderDetailsIncludesCoverImg = {
         id: orderDetail.id,
         orderStatus: orderDetail.orderStatus,
         attribute: orderDetail.attribute,
@@ -185,8 +197,84 @@ class OrderController {
           name: item.name,
           price: item.price,
           quantity: item.quantity,
+          coverImg: item.productFromId?.coverImagePath || null,
         })),
       };
+      res.status(httpStatus.OK).json({ data: responseData });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getManyDetails(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    let getManyByAttributeQuery: GetManyByAttributeQuery;
+    try {
+      // Note: Check request query is valid
+      getManyByAttributeQuery = await getManyByAttributeSchema.validate(
+        req.query,
+      );
+    } catch (err) {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+
+    try {
+      const orderDetails = await OrderService.getOrderDetails({
+        attribute: getManyByAttributeQuery.attribute,
+        pagination: {
+          ...getManyByAttributeQuery,
+        },
+      });
+
+      const responseData: OrderDetail[] = [];
+      let failed = false;
+      orderDetails.every((orderDetail) => {
+        if (!orderDetail.consignee) {
+          failed = true;
+          return false;
+        }
+        return responseData.push({
+          id: orderDetail.id,
+          orderStatus: orderDetail.orderStatus,
+          attribute: orderDetail.attribute,
+          price: orderDetail.price,
+          createdAt: orderDetail.createdAt,
+          consignee: {
+            deliveryType: orderDetail.consignee.deliveryType,
+            name: orderDetail.consignee.name,
+            email: orderDetail.consignee.email,
+            cellphone: orderDetail.consignee.cellphone,
+            addressDetailOne: orderDetail.consignee.addressDetailOne,
+            addressDetailTwo: orderDetail.consignee.addressDetailTwo,
+            province: orderDetail.consignee.province,
+            city: orderDetail.consignee.city,
+            district: orderDetail.consignee.district,
+            town: orderDetail.consignee.town,
+            zipCode: orderDetail.consignee.zipCode,
+            remark: orderDetail.consignee.remark,
+            stationCode: orderDetail.consignee.stationCode,
+            stationName: orderDetail.consignee.stationName,
+            senderRemark: orderDetail.consignee.senderRemark,
+          },
+          items: orderDetail.orderItems.map((item) => ({
+            productId: item.productId,
+            skuId: item.productSkuId,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+          })),
+        });
+      });
+
+      if (failed) {
+        res
+          .send(httpStatus.INTERNAL_SERVER_ERROR)
+          .json({ message: 'Any Order includes a null consignee' });
+      }
       res.status(httpStatus.OK).json({ data: responseData });
     } catch (err) {
       next(err);
@@ -217,6 +305,50 @@ class OrderController {
         data: undefined,
         err,
       };
+    }
+  }
+
+  async updateOrderStatus(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    const { result, data, err } = await OrderController.validateId(req);
+    if (result === 'error') {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+    let updateOrderStatusBody: UpdateOrderStatusBody;
+    try {
+      // Note: Check request body is valid
+      updateOrderStatusBody = await updateOrderStatusSchema.validate(req.body);
+    } catch (err) {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+    try {
+      const order = await OrderService.setOrderStatus({
+        id: data.id,
+        orderStatus: updateOrderStatusBody.orderStatus,
+      });
+      if (!order) {
+        res.status(httpStatus.NOT_FOUND).json({ message: 'Id is invalid.' });
+        return;
+      }
+
+      const responseData: Order = {
+        id: order.id,
+        orderStatus: order.orderStatus,
+        attribute: order.attribute,
+        price: order.price,
+        createdAt: order.createdAt,
+      };
+
+      res.status(httpStatus.OK).json({
+        data: responseData,
+      });
+    } catch (err) {
+      next(err);
     }
   }
   async cancel(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -406,6 +538,178 @@ class OrderController {
       };
 
       res.status(httpStatus.OK).json({ data: logisticsDetail });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getRevokeInformation(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    const { result, data, err } = await OrderController.validateId(req);
+    if (result === 'error') {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+    try {
+      const orderData = await OrderService.getOrderRevokeInformationById(data);
+      if (!orderData || !orderData.revokeInformation) {
+        res.status(httpStatus.NOT_FOUND).json({ message: 'Id is invalid.' });
+        return;
+      }
+      const { revokeInformation } = orderData;
+
+      const responseData: OrderRevokeInformation = {
+        id: orderData.id,
+        revokeInformation: {
+          invoiceStatus: revokeInformation.invoiceStatus,
+          paymentStatus: revokeInformation.paymentStatus,
+          logisticsStatus: revokeInformation.logisticsStatus,
+        },
+      };
+
+      res.status(httpStatus.OK).json({
+        data: responseData,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async updateRevokeInvoiceStatus(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    const { result, data, err } = await OrderController.validateId(req);
+    if (result === 'error') {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+    let updateRevokeInvoiceStatusBody: UpdateRevokeInvoiceStatusBody;
+    try {
+      // Note: Check request body is valid
+      updateRevokeInvoiceStatusBody =
+        await updateRevokeInvoiceStatusSchema.validate(req.body);
+    } catch (err) {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+    try {
+      const revokeInformation = await OrderService.setOrderRevokeInvoiceStatus({
+        id: data.id,
+        invoiceStatus: updateRevokeInvoiceStatusBody.invoiceStatus,
+      });
+      if (!revokeInformation) {
+        res.status(httpStatus.NOT_FOUND).json({ message: 'Id is invalid.' });
+        return;
+      }
+
+      const responseData: OrderRevokeInformation = {
+        id: data.id,
+        revokeInformation: {
+          invoiceStatus: revokeInformation.invoiceStatus,
+          paymentStatus: revokeInformation.paymentStatus,
+          logisticsStatus: revokeInformation.logisticsStatus,
+        },
+      };
+
+      res.status(httpStatus.OK).json({
+        data: responseData,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+  async updateRevokePaymentStatus(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    const { result, data, err } = await OrderController.validateId(req);
+    if (result === 'error') {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+    let updateRevokePaymentStatusBody: UpdateRevokePaymentStatusBody;
+    try {
+      // Note: Check request body is valid
+      updateRevokePaymentStatusBody =
+        await updateRevokePaymentStatusSchema.validate(req.body);
+    } catch (err) {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+    try {
+      const revokeInformation = await OrderService.setOrderRevokePaymentStatus({
+        id: data.id,
+        paymentStatus: updateRevokePaymentStatusBody.paymentStatus,
+      });
+      if (!revokeInformation) {
+        res.status(httpStatus.NOT_FOUND).json({ message: 'Id is invalid.' });
+        return;
+      }
+
+      const responseData: OrderRevokeInformation = {
+        id: data.id,
+        revokeInformation: {
+          invoiceStatus: revokeInformation.invoiceStatus,
+          paymentStatus: revokeInformation.paymentStatus,
+          logisticsStatus: revokeInformation.logisticsStatus,
+        },
+      };
+
+      res.status(httpStatus.OK).json({
+        data: responseData,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+  async updateRevokeLogisticsStatus(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    const { result, data, err } = await OrderController.validateId(req);
+    if (result === 'error') {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+    let updateRevokeLogisticsStatusBody: UpdateRevokeLogisticsStatusBody;
+    try {
+      // Note: Check request body is valid
+      updateRevokeLogisticsStatusBody =
+        await updateRevokeLogisticsStatusSchema.validate(req.body);
+    } catch (err) {
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      return;
+    }
+    try {
+      const revokeInformation =
+        await OrderService.setOrderRevokeLogisticsStatus({
+          id: data.id,
+          logisticsStatus: updateRevokeLogisticsStatusBody.logisticsStatus,
+        });
+      if (!revokeInformation) {
+        res.status(httpStatus.NOT_FOUND).json({ message: 'Id is invalid.' });
+        return;
+      }
+
+      const responseData: OrderRevokeInformation = {
+        id: data.id,
+        revokeInformation: {
+          invoiceStatus: revokeInformation.invoiceStatus,
+          paymentStatus: revokeInformation.paymentStatus,
+          logisticsStatus: revokeInformation.logisticsStatus,
+        },
+      };
+
+      res.status(httpStatus.OK).json({
+        data: responseData,
+      });
     } catch (err) {
       next(err);
     }
