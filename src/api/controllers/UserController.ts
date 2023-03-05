@@ -10,6 +10,7 @@ import { Pagination } from '../../utils/helper/pagination';
 import BonusPointService from '../services/BonusPointService';
 import userController from './UserController';
 import UserActivityService from '../services/UserActivityService';
+import MailgunService from '../services/MailgunService';
 
 interface RegisterBody {
   email: string;
@@ -163,6 +164,13 @@ class UserController {
 
       // Send register bonus points
       await BonusPointService.gainFromRegisterMembership(user.id);
+
+      // 生成加密 email 值
+      const hashData = await MailgunService.createHashEmail({
+        email: registerBody.email,
+      });
+
+      await MailgunService.sendEmail({ email: registerBody.email, hashData });
 
       res.status(httpStatus.CREATED).send();
     } catch (err) {

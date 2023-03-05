@@ -31,4 +31,8 @@ export default {
   MAILGUN_DOMAIN: process.env.MAILGUN_DOMAIN,
   // mailgun key
   MAILGUN_KEY: process.env.MAILGUN_KEY,
+  // host
+  HOST: process.env.HOST,
+  // email hash SECRET
+  EMAIL_HASH_SECRET: process.env.EMAIL_HASH_SECRET,
 };
