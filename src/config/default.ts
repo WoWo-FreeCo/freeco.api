@@ -33,6 +33,10 @@ export default {
   MAILGUN_KEY: process.env.MAILGUN_KEY,
   // host
   HOST: process.env.HOST,
+  // 前台網址
+  CLIENT_HOST: process.env.CLIENT_HOST,
+  // 網站名稱
+  CLIENT_HOST_NAME: process.env.CLIENT_HOST_NAME,
   // email hash SECRET
   EMAIL_HASH_SECRET: process.env.EMAIL_HASH_SECRET,
 };

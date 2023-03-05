@@ -165,11 +165,31 @@ class UserController {
       await BonusPointService.gainFromRegisterMembership(user.id);
 
       // 生成加密 email 值
-      const hashData = await MailgunService.createHashEmail({
+      const hashData = await MailgunService.encodeEmail({
         email: registerBody.email,
       });
 
-      await MailgunService.sendEmail({ email: registerBody.email, hashData });
+      const host = config.get<string>('HOST');
+      const apiPort = config.get<string>('API_PORT');
+      const link = `${host}:${apiPort}/api/v1/mail/vaildated-email?email=${hashData}`;
+      const details = {
+        from: `${config.get<string>(
+          'CLIENT_HOST_NAME',
+        )} <info@${config.get<string>('MAILGUN_DOMAIN')}>`,
+        subject: `${config.get<string>('CLIENT_HOST_NAME')}-驗證信箱連結`,
+        html: `
+        <html>
+        <h1>點擊連結驗證信箱</h1>
+           <a href="${link}">${link}</a>
+       </html>
+        `,
+      };
+      // 發送信件
+      await MailgunService.sendEmail({
+        email: registerBody.email,
+        hashData,
+        details,
+      });
 
       res.status(httpStatus.CREATED).send();
     } catch (err) {
@@ -313,10 +333,10 @@ class UserController {
   ): Promise<void> {
     try {
       const { id } = req.userdata;
-      const user = await userService.getUserProfileById({ id });
+      const user = await UserService.getUserProfileById({ id });
 
       if (user && user.activation) {
-        const memberLevel = userService.getUserMemberLevel({
+        const memberLevel = UserService.getUserMemberLevel({
           activation: user.activation,
         });
 
@@ -434,7 +454,7 @@ class UserController {
       const responseData: ProfileResponse[] = users.map((user) => {
         let memberLevel: MemberLevel | null = null;
         if (user.activation) {
-          memberLevel = userService.getUserMemberLevel({
+          memberLevel = UserService.getUserMemberLevel({
             activation: user.activation,
           });
         } else {
@@ -478,6 +498,71 @@ class UserController {
       } else {
         res.status(httpStatus.OK).json({ data: responseData });
       }
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * 忘記密碼
+   */
+  async forgotPassword(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    const hashData = await MailgunService.encodeEmail({
+      email: req.body.email,
+    });
+    const host = config.get<string>('CLIENT_HOST');
+    const link = `${host}}/forget?email=${hashData}`;
+    const details = {
+      from: `${config.get<string>(
+        'CLIENT_HOST_NAME',
+      )} <info@${config.get<string>('MAILGUN_DOMAIN')}>`,
+      subject: `${config.get<string>('CLIENT_HOST_NAME')}-驗證信箱連結`,
+      html: `
+      <html>
+      <h1>點擊連結重設密碼</h1>
+         <a href="${link}">${link}</a>
+     </html>
+      `,
+    };
+    try {
+      await MailgunService.sendEmail({
+        email: req.body.email,
+        hashData,
+        details,
+      });
+      res.status(httpStatus.OK).json({ msg: '重置密碼信件發送成功' });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * 重設密碼
+   */
+  async resetPassword(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const userBody = await registerSchema.validate(req.body);
+      // 解密 email
+      const email = await MailgunService.decipherEmail({
+        hashValue: userBody.email,
+      });
+      // 透過 email 取得使用者資料
+      const user = await UserService.getUserByEmail({ email });
+      if (user === null) {
+        res.status(httpStatus.NOT_FOUND).json({ msg: 'User not found.' });
+        return;
+      }
+
+      await UserService.resetPassword({ email, password: userBody.password });
+      res.status(httpStatus.OK).json({ msg: '重置密碼成功' });
     } catch (err) {
       next(err);
     }

@@ -1,6 +1,8 @@
 import prisma from '../../database/client/prisma';
 import { User, UserActivation } from '@prisma/client';
 import { Pagination } from '../../utils/helper/pagination';
+import moment from 'moment/moment';
+import bcrypt from 'bcrypt';
 
 interface CreateUserInput {
   email: string;
@@ -254,6 +256,40 @@ class UserService implements IUserService {
         rewardCredit: {
           increment: data.credit,
         },
+      },
+    });
+  }
+
+  /**
+   * 更新信箱驗證時間
+   */
+  async vaildationUserEmail(data: { email: string }): Promise<void> {
+    await prisma.user.update({
+      where: {
+        email: data.email,
+      },
+      data: {
+        // 更新信箱啟用時間
+        type: moment().format('YYYY/MM/DD HH:mm:ss'),
+      },
+    });
+  }
+
+  /**
+   * 重置密碼
+   */
+  async resetPassword(data: {
+    password: string;
+    email: string;
+  }): Promise<void> {
+    // Note: Auto-gen a `Salt` and hash password
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    await prisma.user.update({
+      where: {
+        email: data.email,
+      },
+      data: {
+        password: hashedPassword,
       },
     });
   }
