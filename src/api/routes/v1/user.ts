@@ -37,5 +37,5 @@ userRoute
   // 忘記密碼
   .post('/forgot-password', UserController.forgotPassword)
   // 重置密碼
-  .post('reset-password', UserController.resetPassword);
+  .post('/reset-password', UserController.resetPassword);
 export default userRoute;

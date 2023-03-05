@@ -66,6 +66,24 @@ const loginSchema: ObjectSchema<LoginBody> = object({
   password: string().required(),
 });
 
+interface ForgotPasswordBody {
+  email: string;
+}
+
+const forgotPasswordSchema: ObjectSchema<ForgotPasswordBody> = object({
+  email: string().email().required(),
+});
+
+interface ResetPasswordBody {
+  email: string;
+  password: string;
+}
+
+const resetPasswordSchema: ObjectSchema<ResetPasswordBody> = object({
+  email: string().required(),
+  password: string().required(),
+});
+
 type GetManyProfileQuery = Pagination;
 const getManyProfileQuerySchema: ObjectSchema<GetManyProfileQuery> = object({
   take: number().min(0).max(200).default(10).optional(),
@@ -511,26 +529,28 @@ class UserController {
     res: Response,
     next: NextFunction,
   ): Promise<void> {
-    const hashData = await MailgunService.encodeEmail({
-      email: req.body.email,
-    });
-    const host = config.get<string>('CLIENT_HOST');
-    const link = `${host}/forget?email=${hashData}`;
-    const details = {
-      from: `${config.get<string>(
-        'CLIENT_HOST_NAME',
-      )} <info@${config.get<string>('MAILGUN_DOMAIN')}>`,
-      subject: `${config.get<string>('CLIENT_HOST_NAME')}-驗證信箱連結`,
-      html: `
+    try {
+      const forgotPasswordBody: ForgotPasswordBody =
+        await forgotPasswordSchema.validate(req.body);
+      const hashData = await MailgunService.encodeEmail({
+        email: forgotPasswordBody.email,
+      });
+      const host = config.get<string>('CLIENT_HOST');
+      const link = `${host}/forget?email=${hashData}`;
+      const details = {
+        from: `${config.get<string>(
+          'CLIENT_HOST_NAME',
+        )} <info@${config.get<string>('MAILGUN_DOMAIN')}>`,
+        subject: `${config.get<string>('CLIENT_HOST_NAME')}-驗證信箱連結`,
+        html: `
       <html>
       <h1>點擊連結重設密碼</h1>
          <a href="${link}">${link}</a>
      </html>
       `,
-    };
-    try {
+      };
       await MailgunService.sendEmail({
-        email: req.body.email,
+        email: forgotPasswordBody.email,
         hashData,
         details,
       });
@@ -549,10 +569,11 @@ class UserController {
     next: NextFunction,
   ): Promise<void> {
     try {
-      const userBody = await registerSchema.validate(req.body);
+      const resetPasswordBody: ResetPasswordBody =
+        await resetPasswordSchema.validate(req.body);
       // 解密 email
       const email = await MailgunService.decipherEmail({
-        hashValue: userBody.email,
+        hashValue: resetPasswordBody.email,
       });
       // 透過 email 取得使用者資料
       const user = await UserService.getUserByEmail({ email });
@@ -560,8 +581,10 @@ class UserController {
         res.status(httpStatus.NOT_FOUND).json({ msg: 'User not found.' });
         return;
       }
-
-      await UserService.resetPassword({ email, password: userBody.password });
+      await UserService.resetPassword({
+        email,
+        password: resetPasswordBody.password,
+      });
       res.status(httpStatus.OK).json({ msg: '重置密碼成功' });
     } catch (err) {
       next(err);
