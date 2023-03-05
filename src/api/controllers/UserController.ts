@@ -93,13 +93,13 @@ interface ProfileResponse {
 }
 
 // Note:
-// Cookie options, default access token is 1 hour and refresh token is 24 hours
+// Cookie options, default access token is 1 minute and refresh token is 30 minutes
 const accessTokenExpiresIn = config.has('ACCESS_TOKEN_EXPIRES_IN')
   ? config.get<number>('ACCESS_TOKEN_EXPIRES_IN')
   : 1;
 const refreshTokenExpiresIn = config.has('REFRESH_TOKEN_EXPIRES_IN')
   ? config.get<number>('REFRESH_TOKEN_EXPIRES_IN')
-  : 24;
+  : 30;
 const accessTokenCookieOptions: CookieOptions = {
   expires: new Date(Date.now() + accessTokenExpiresIn * 60 * 1000),
   maxAge: accessTokenExpiresIn * 60 * 1000,
@@ -198,7 +198,7 @@ class UserController {
         },
         'ACCESS_TOKEN_PRIVATE_KEY',
         {
-          expiresIn: `${accessTokenExpiresIn}h`,
+          expiresIn: `${accessTokenExpiresIn}m`,
         },
       );
       const refreshToken = jwt.sign(
@@ -209,7 +209,7 @@ class UserController {
         },
         'REFRESH_TOKEN_PRIVATE_KEY',
         {
-          expiresIn: `${refreshTokenExpiresIn}h`,
+          expiresIn: `${refreshTokenExpiresIn}m`,
         },
       );
 
@@ -280,7 +280,7 @@ class UserController {
         },
         'ACCESS_TOKEN_PRIVATE_KEY',
         {
-          expiresIn: `${accessTokenExpiresIn}h`,
+          expiresIn: `${accessTokenExpiresIn}m`,
         },
       );
 

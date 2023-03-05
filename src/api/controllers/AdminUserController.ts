@@ -39,7 +39,7 @@ const accessTokenExpiresIn = config.has('ADMIN_ACCESS_TOKEN_EXPIRES_IN')
   : 1;
 const refreshTokenExpiresIn = config.has('ADMIN_REFRESH_TOKEN_EXPIRES_IN')
   ? config.get<number>('ADMIN_REFRESH_TOKEN_EXPIRES_IN')
-  : 24;
+  : 30;
 const accessTokenCookieOptions: CookieOptions = {
   expires: new Date(Date.now() + accessTokenExpiresIn * 60 * 1000),
   maxAge: accessTokenExpiresIn * 60 * 1000,
@@ -120,7 +120,7 @@ class AdminUserController {
         },
         'ADMIN_ACCESS_TOKEN_PRIVATE_KEY',
         {
-          expiresIn: `${accessTokenExpiresIn}h`,
+          expiresIn: `${accessTokenExpiresIn}m`,
         },
       );
       const refreshToken = jwt.sign(
@@ -131,7 +131,7 @@ class AdminUserController {
         },
         'ADMIN_REFRESH_TOKEN_PRIVATE_KEY',
         {
-          expiresIn: `${refreshTokenExpiresIn}h`,
+          expiresIn: `${refreshTokenExpiresIn}m`,
         },
       );
 
@@ -200,7 +200,7 @@ class AdminUserController {
         },
         'ADMIN_ACCESS_TOKEN_PRIVATE_KEY',
         {
-          expiresIn: `${accessTokenExpiresIn}h`,
+          expiresIn: `${accessTokenExpiresIn}m`,
         },
       );
 
