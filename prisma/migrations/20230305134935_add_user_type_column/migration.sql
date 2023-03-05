@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE `User` ADD COLUMN `type` DATETIME(3) NULL;

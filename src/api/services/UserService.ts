@@ -1,7 +1,6 @@
 import prisma from '../../database/client/prisma';
 import { User, UserActivation } from '@prisma/client';
 import { Pagination } from '../../utils/helper/pagination';
-import moment from 'moment/moment';
 import bcrypt from 'bcrypt';
 
 interface CreateUserInput {
@@ -270,7 +269,7 @@ class UserService implements IUserService {
       },
       data: {
         // 更新信箱啟用時間
-        type: moment().format('YYYY/MM/DD HH:mm:ss'),
+        type: new Date(),
       },
     });
   }

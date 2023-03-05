@@ -19,7 +19,7 @@ class MailgunController {
       });
       const host = config.get<string>('HOST');
       const apiPort = config.get<string>('API_PORT');
-      const link = `${host}:${apiPort}/api/v1/mail/vaildated-email?email=${hashData}`;
+      const link = `${host}:${apiPort}/api/v1/mail/validation-email?email=${hashData}`;
       const details = {
         from: `${config.get<string>(
           'CLIENT_HOST_NAME',
