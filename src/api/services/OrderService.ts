@@ -108,15 +108,29 @@ interface IOrderService {
       };
     },
   ): Promise<Order[]>;
-  getOrderDetailById(data: {
+  getOrderDetailIncludesCoverImagePathById(data: {
     id: string;
     restrict?: {
       userId: string;
     };
   }): Promise<
-    | (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })
+    | (Order & {
+        consignee: OrderConsignee | null;
+        orderItems: (OrderItem & {
+          productFromId: { coverImagePath: string | null } | null;
+        })[];
+      })
     | null
   >;
+  getOrderDetails(
+    data: GetOrdersInput,
+  ): Promise<
+    (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })[]
+  >;
+  setOrderStatus(data: {
+    id: string;
+    orderStatus: OrderStatus;
+  }): Promise<Order | null>;
   getOrderRevokeInformationById(data: {
     id: string;
   }): Promise<(Order & { revokeInformation: OrderRevoke | null }) | null>;
@@ -458,13 +472,18 @@ class OrderService implements IOrderService {
       },
     });
   }
-  async getOrderDetailById(data: {
+  async getOrderDetailIncludesCoverImagePathById(data: {
     id: string;
     restrict?: {
       userId: string;
     };
   }): Promise<
-    | (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })
+    | (Order & {
+        consignee: OrderConsignee | null;
+        orderItems: (OrderItem & {
+          productFromId: { coverImagePath: string | null } | null;
+        })[];
+      })
     | null
   > {
     return prisma.order.findFirst({
@@ -474,7 +493,15 @@ class OrderService implements IOrderService {
       },
       include: {
         consignee: true,
-        orderItems: true,
+        orderItems: {
+          include: {
+            productFromId: {
+              select: {
+                coverImagePath: true,
+              },
+            },
+          },
+        },
       },
     });
   }
@@ -502,7 +529,23 @@ class OrderService implements IOrderService {
       },
     });
   }
-
+  async setOrderStatus(data: {
+    id: string;
+    orderStatus: OrderStatus;
+  }): Promise<Order | null> {
+    try {
+      return await prisma.order.update({
+        where: {
+          id: data.id,
+        },
+        data: {
+          orderStatus: data.orderStatus,
+        },
+      });
+    } catch (err) {
+      return null;
+    }
+  }
   async getOrderRevokeInformationById(data: {
     id: string;
   }): Promise<(Order & { revokeInformation: OrderRevoke | null }) | null> {

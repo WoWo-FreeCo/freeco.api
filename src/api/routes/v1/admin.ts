@@ -68,8 +68,9 @@ const adminOrderRouter: Router = Router();
 adminOrderRouter
   .get('', OrderController.getMany)
   .get('/details', OrderController.getManyDetails)
+  .post('/:id/order-status', OrderController.updateOrderStatus)
   .post('/:id/cancel-invoice', OrderController.cancelInvoice)
-  .get('/:id/detail', OrderController.getDetail)
+  .get('/:id/detail', OrderController.getOrderDetailIncludesCoverImg)
   .get('/:id/logistics/detail', OrderController.getLogisticsDetail)
   .get('/:id/revoke', OrderController.getRevokeInformation)
   .post('/:id/revoke/invoice-status', OrderController.updateRevokeInvoiceStatus)
