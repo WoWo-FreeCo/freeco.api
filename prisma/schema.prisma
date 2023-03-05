@@ -236,11 +236,19 @@ enum OrderRevokePaymentStatus {
   REFUNDED
 }
 
+enum OrderRevokeLogisticsStatus {
+  // 等待取消物流
+  WAIT_CANCEL
+  // 已取消物流
+  CANCELLED
+}
+
 model OrderRevoke {
-  invoiceStatus OrderRevokeInvoiceStatus
-  paymentStatus OrderRevokePaymentStatus
-  order         Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  orderId       String                   @id @db.VarChar(19)
+  invoiceStatus   OrderRevokeInvoiceStatus
+  paymentStatus   OrderRevokePaymentStatus
+  logisticsStatus OrderRevokeLogisticsStatus
+  order           Order                      @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  orderId         String                     @id @db.VarChar(19)
 }
 
 model ProductCategory {

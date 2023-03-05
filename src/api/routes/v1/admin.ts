@@ -69,7 +69,14 @@ adminOrderRouter
   .get('', OrderController.getMany)
   .post('/:id/cancel-invoice', OrderController.cancelInvoice)
   .get('/:id/detail', OrderController.getDetail)
-  .get('/:id/logistics/detail', OrderController.getLogisticsDetail);
+  .get('/:id/logistics/detail', OrderController.getLogisticsDetail)
+  .get('/:id/revoke', OrderController.getRevokeInformation)
+  .post('/:id/revoke/invoice-status', OrderController.updateRevokeInvoiceStatus)
+  .post('/:id/revoke/payment-status', OrderController.updateRevokePaymentStatus)
+  .post(
+    '/:id/revoke/logistics-status',
+    OrderController.updateRevokeLogisticsStatus,
+  );
 
 const adminWebPageRouter: Router = Router();
 adminWebPageRouter.route('/:id').put(AdminWebPageController.update);

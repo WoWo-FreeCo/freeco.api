@@ -7,6 +7,7 @@ import {
   OrderItem,
   OrderRevoke,
   OrderRevokeInvoiceStatus,
+  OrderRevokeLogisticsStatus,
   OrderRevokePaymentStatus,
   OrderStatus,
 } from '@prisma/client';
@@ -119,6 +120,18 @@ interface IOrderService {
   getOrderRevokeInformationById(data: {
     id: string;
   }): Promise<(Order & { revokeInformation: OrderRevoke | null }) | null>;
+  setOrderRevokeInvoiceStatus(data: {
+    id: string;
+    invoiceStatus: OrderRevokeInvoiceStatus;
+  }): Promise<OrderRevoke | null>;
+  setOrderRevokePaymentStatus(data: {
+    id: string;
+    paymentStatus: OrderRevokePaymentStatus;
+  }): Promise<OrderRevoke | null>;
+  setOrderRevokeLogisticsStatus(data: {
+    id: string;
+    logisticsStatus: OrderRevokeLogisticsStatus;
+  }): Promise<OrderRevoke | null>;
   getOrderDetailByMerchantTradeNo(data: {
     merchantTradeNo: string;
   }): Promise<
@@ -357,11 +370,15 @@ class OrderService implements IOrderService {
       }
     });
 
-    // Note: 產生退貨資料, 標記為已開立發票
+    // Note: 產生退貨資料
+    // (1) 等待作廢發票
+    // (2) 等待退款
+    // (3) 等待取消物流
     await this.initOrderRevoke({
       id: data.id,
       invoiceStatus: OrderRevokeInvoiceStatus.WAIT_CANCEL,
       paymentStatus: OrderRevokePaymentStatus.WAIT_REFUND,
+      logisticsStatus: OrderRevokeLogisticsStatus.WAIT_CANCEL,
     });
     return {
       code: CancelOrderResultCode.SUCCESS,
@@ -379,11 +396,15 @@ class OrderService implements IOrderService {
       },
     });
 
-    // Note: 產生退貨資料, 標記為未開立發票
+    // Note: 產生退貨資料
+    // (1) 未開立發票
+    // (2) 等待退款
+    // (3) 等待取消物流
     await this.initOrderRevoke({
       id: data.id,
       invoiceStatus: OrderRevokeInvoiceStatus.UNISSUED,
       paymentStatus: OrderRevokePaymentStatus.WAIT_REFUND,
+      logisticsStatus: OrderRevokeLogisticsStatus.WAIT_CANCEL,
     });
     return result.count === 1;
   }
@@ -392,12 +413,14 @@ class OrderService implements IOrderService {
     id: string;
     invoiceStatus: OrderRevokeInvoiceStatus;
     paymentStatus: OrderRevokePaymentStatus;
+    logisticsStatus: OrderRevokeLogisticsStatus;
   }): Promise<void> {
     await prisma.orderRevoke.create({
       data: {
         orderId: data.id,
         invoiceStatus: data.invoiceStatus,
         paymentStatus: data.paymentStatus,
+        logisticsStatus: data.logisticsStatus,
       },
     });
   }
@@ -455,6 +478,7 @@ class OrderService implements IOrderService {
       },
     });
   }
+
   async getOrderRevokeInformationById(data: {
     id: string;
   }): Promise<(Order & { revokeInformation: OrderRevoke | null }) | null> {
@@ -466,6 +490,58 @@ class OrderService implements IOrderService {
         revokeInformation: true,
       },
     });
+  }
+
+  async setOrderRevokeInvoiceStatus(data: {
+    id: string;
+    invoiceStatus: OrderRevokeInvoiceStatus;
+  }): Promise<OrderRevoke | null> {
+    try {
+      return await prisma.orderRevoke.update({
+        where: {
+          orderId: data.id,
+        },
+        data: {
+          invoiceStatus: data.invoiceStatus,
+        },
+      });
+    } catch (err) {
+      return null;
+    }
+  }
+  async setOrderRevokePaymentStatus(data: {
+    id: string;
+    paymentStatus: OrderRevokePaymentStatus;
+  }): Promise<OrderRevoke | null> {
+    try {
+      return await prisma.orderRevoke.update({
+        where: {
+          orderId: data.id,
+        },
+        data: {
+          paymentStatus: data.paymentStatus,
+        },
+      });
+    } catch (err) {
+      return null;
+    }
+  }
+  async setOrderRevokeLogisticsStatus(data: {
+    id: string;
+    logisticsStatus: OrderRevokeLogisticsStatus;
+  }): Promise<OrderRevoke | null> {
+    try {
+      return await prisma.orderRevoke.update({
+        where: {
+          orderId: data.id,
+        },
+        data: {
+          logisticsStatus: data.logisticsStatus,
+        },
+      });
+    } catch (err) {
+      return null;
+    }
   }
   async getOrderDetailByMerchantTradeNo(data: {
     merchantTradeNo: string;
