@@ -144,7 +144,10 @@ class AdminUserController {
       });
 
       res.status(httpStatus.OK).json({
-        data: { accessToken },
+        data: {
+          accessToken,
+          refreshToken,
+        },
       });
     } catch (err) {
       next(err);
@@ -156,7 +159,12 @@ class AdminUserController {
     res: Response,
     next: NextFunction,
   ): Promise<void> {
-    const currentRefreshToken = req.cookies.refresh_token as string;
+    let currentRefreshToken = req.cookies.refresh_token as string;
+
+    // Note: Check request body includes refresh token if not exists in cookies
+    if (!currentRefreshToken) {
+      currentRefreshToken = req.body.refreshToken as string;
+    }
 
     const failMessage = 'Could not refresh token.';
 
@@ -226,6 +234,7 @@ class AdminUserController {
       res.status(200).json({
         data: {
           accessToken,
+          refreshToken,
         },
       });
     } catch (err) {
