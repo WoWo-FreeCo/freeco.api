@@ -234,8 +234,13 @@ class UserController {
     res: Response,
     next: NextFunction,
   ): Promise<void> {
-    // Note: Check request body includes refresh token if not exists in cookies
-    const currentRefreshToken = req.body.refreshToken as string;
+    // Note: Check refresh token request req.headers.authorization
+    const authorization = req.headers.authorization;
+    if (!authorization || !authorization.includes('Bearer')) {
+      res.sendStatus(httpStatus.UNAUTHORIZED);
+      return;
+    }
+    const currentRefreshToken = authorization.slice(7);
 
     const failMessage = 'Could not refresh token.';
 
