@@ -192,9 +192,15 @@ class ProductService implements IProductService {
     try {
       return await prisma.product.create({
         data: {
-          ...data,
-          skuId: data.skuId,
           categoryId: data.categoryId,
+          skuId: data.skuId,
+          coverImagePath: data.coverImagePath,
+          name: data.name,
+          price: data.price,
+          memberPrice: data.memberPrice,
+          vipPrice: data.vipPrice,
+          svipPrice: data.svipPrice,
+          attribute: data.attribute,
           inventory: {
             create: {
               quantity: 0,
@@ -284,8 +290,15 @@ class ProductService implements IProductService {
           id: data.id,
         },
         data: {
-          ...data,
-          skuId: data.attribute === 'COLD_CHAIN' ? null : data.skuId,
+          categoryId: data.categoryId,
+          skuId: data.skuId,
+          coverImagePath: data.coverImagePath,
+          name: data.name,
+          price: data.price,
+          memberPrice: data.memberPrice,
+          vipPrice: data.vipPrice,
+          svipPrice: data.svipPrice,
+          attribute: data.attribute,
         },
         include: {
           productImages: true,
