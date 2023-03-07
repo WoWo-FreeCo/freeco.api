@@ -317,21 +317,21 @@ class PaymentService implements IPaymentService {
         ...result,
         InvoiceItemName:
           result.InvoiceItemName === ''
-            ? item.name
+            ? result.InvoiceItemName + item.name
             : result.InvoiceItemName + `|${item.name}`,
         InvoiceItemCount:
           result.InvoiceItemCount === ''
-            ? item.quantity
+            ? result.InvoiceItemCount + item.quantity
             : result.InvoiceItemCount + `|${item.quantity}`,
         InvoiceItemWord:
           result.InvoiceItemWord === '' ? `個` : result.InvoiceItemWord + `|個`,
         InvoiceItemPrice:
           result.InvoiceItemPrice === ''
-            ? item.price
+            ? result.InvoiceItemPrice + item.price
             : result.InvoiceItemPrice + `|${item.price}`,
         InvoiceItemTaxType:
           result.InvoiceItemTaxType === ''
-            ? '1'
+            ? result.InvoiceItemTaxType + '1'
             : result.InvoiceItemTaxType + '|1',
       }),
       {
