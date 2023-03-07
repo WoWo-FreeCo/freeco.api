@@ -107,12 +107,12 @@ const accessTokenCookieOptions: CookieOptions = {
   sameSite: 'lax',
 };
 
-const refreshTokenCookieOptions: CookieOptions = {
-  expires: new Date(Date.now() + refreshTokenExpiresIn * 60 * 1000),
-  maxAge: refreshTokenExpiresIn * 60 * 1000,
-  httpOnly: true,
-  sameSite: 'lax',
-};
+// const refreshTokenCookieOptions: CookieOptions = {
+//   expires: new Date(Date.now() + refreshTokenExpiresIn * 60 * 1000),
+//   maxAge: refreshTokenExpiresIn * 60 * 1000,
+//   httpOnly: true,
+//   sameSite: 'lax',
+// };
 
 class UserController {
   async register(
@@ -213,9 +213,6 @@ class UserController {
         },
       );
 
-      // Note: Send (new) access token and refresh token in cookie
-      res.cookie('access_token', accessToken, accessTokenCookieOptions);
-      res.cookie('refresh_token', refreshToken, refreshTokenCookieOptions);
       res.cookie('logged_in', true, {
         ...accessTokenCookieOptions,
         httpOnly: false,
@@ -237,12 +234,8 @@ class UserController {
     res: Response,
     next: NextFunction,
   ): Promise<void> {
-    let currentRefreshToken = req.cookies.refresh_token as string;
-
     // Note: Check request body includes refresh token if not exists in cookies
-    if (!currentRefreshToken) {
-      currentRefreshToken = req.body.refreshToken as string;
-    }
+    const currentRefreshToken = req.body.refreshToken as string;
 
     const failMessage = 'Could not refresh token.';
 
@@ -301,9 +294,6 @@ class UserController {
         },
       );
 
-      // Note: Send (new) access token and refresh token in cookie
-      res.cookie('access_token', accessToken, accessTokenCookieOptions);
-      res.cookie('refresh_token', refreshToken, refreshTokenCookieOptions);
       res.cookie('logged_in', true, {
         ...accessTokenCookieOptions,
         httpOnly: false,
