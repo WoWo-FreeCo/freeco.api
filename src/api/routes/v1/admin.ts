@@ -9,6 +9,7 @@ import OrderController from '../../controllers/OrderController';
 import AdminWebPageController from '../../controllers/AdminWebPageController';
 import UserController from '../../controllers/UserController';
 import AdminBonusPointController from '../../controllers/AdminBonusPointController';
+import AdminProductInventoryController from '../../controllers/AdminProductInventoryController';
 
 const adminUserRouter: Router = Router();
 adminUserRouter
@@ -44,6 +45,10 @@ adminProductRouter
     '/:id/:field/:index',
     AdminProductController.deleteProductImagesOrMarkdownInfosByIndex,
   );
+adminProductRouter.post(
+  '/:id/inventory/add',
+  AdminProductInventoryController.add,
+);
 
 const adminHomeBannerRouter: Router = Router();
 adminHomeBannerRouter.post('/', AdminHomeBannerController.create);
@@ -62,8 +67,18 @@ adminCheckContentRouter
 const adminOrderRouter: Router = Router();
 adminOrderRouter
   .get('', OrderController.getMany)
-  .get('/:id/detail', OrderController.getDetail)
-  .get('/:id/logistics/detail', OrderController.getLogisticsDetail);
+  .get('/details', OrderController.getManyDetails)
+  .post('/:id/order-status', OrderController.updateOrderStatus)
+  .post('/:id/cancel-invoice', OrderController.cancelInvoice)
+  .get('/:id/detail', OrderController.getOrderDetailIncludesCoverImg)
+  .get('/:id/logistics/detail', OrderController.getLogisticsDetail)
+  .get('/:id/revoke', OrderController.getRevokeInformation)
+  .post('/:id/revoke/invoice-status', OrderController.updateRevokeInvoiceStatus)
+  .post('/:id/revoke/payment-status', OrderController.updateRevokePaymentStatus)
+  .post(
+    '/:id/revoke/logistics-status',
+    OrderController.updateRevokeLogisticsStatus,
+  );
 
 const adminWebPageRouter: Router = Router();
 adminWebPageRouter.route('/:id').put(AdminWebPageController.update);

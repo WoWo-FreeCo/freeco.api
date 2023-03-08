@@ -39,19 +39,19 @@ const accessTokenExpiresIn = config.has('ADMIN_ACCESS_TOKEN_EXPIRES_IN')
   : 1;
 const refreshTokenExpiresIn = config.has('ADMIN_REFRESH_TOKEN_EXPIRES_IN')
   ? config.get<number>('ADMIN_REFRESH_TOKEN_EXPIRES_IN')
-  : 24;
+  : 30;
 const accessTokenCookieOptions: CookieOptions = {
   expires: new Date(Date.now() + accessTokenExpiresIn * 60 * 1000),
   maxAge: accessTokenExpiresIn * 60 * 1000,
   httpOnly: true,
   sameSite: 'lax',
 };
-const refreshTokenCookieOptions: CookieOptions = {
-  expires: new Date(Date.now() + refreshTokenExpiresIn * 60 * 1000),
-  maxAge: refreshTokenExpiresIn * 60 * 1000,
-  httpOnly: true,
-  sameSite: 'lax',
-};
+// const refreshTokenCookieOptions: CookieOptions = {
+//   expires: new Date(Date.now() + refreshTokenExpiresIn * 60 * 1000),
+//   maxAge: refreshTokenExpiresIn * 60 * 1000,
+//   httpOnly: true,
+//   sameSite: 'lax',
+// };
 
 class AdminUserController {
   async register(
@@ -111,7 +111,7 @@ class AdminUserController {
         return;
       }
 
-      // Note: Sign access token and refresh token
+      // Note: Sign (new) access token and refresh token
       const accessToken = jwt.sign(
         {
           sub: {
@@ -120,7 +120,7 @@ class AdminUserController {
         },
         'ADMIN_ACCESS_TOKEN_PRIVATE_KEY',
         {
-          expiresIn: `${accessTokenExpiresIn}h`,
+          expiresIn: `${accessTokenExpiresIn}m`,
         },
       );
       const refreshToken = jwt.sign(
@@ -131,20 +131,21 @@ class AdminUserController {
         },
         'ADMIN_REFRESH_TOKEN_PRIVATE_KEY',
         {
-          expiresIn: `${refreshTokenExpiresIn}h`,
+          expiresIn: `${refreshTokenExpiresIn}m`,
         },
       );
 
-      // Note: Send access token in cookie
-      res.cookie('access_token', accessToken, accessTokenCookieOptions);
-      res.cookie('refresh_token', refreshToken, refreshTokenCookieOptions);
+      // Note: Send (new) access token and refresh token in cookie
       res.cookie('logged_in', true, {
         ...accessTokenCookieOptions,
         httpOnly: false,
       });
 
       res.status(httpStatus.OK).json({
-        data: { accessToken },
+        data: {
+          accessToken,
+          refreshToken,
+        },
       });
     } catch (err) {
       next(err);
@@ -156,12 +157,18 @@ class AdminUserController {
     res: Response,
     next: NextFunction,
   ): Promise<void> {
-    const refreshToken = req.cookies.refresh_token as string;
+    // Note: Check refresh token request req.headers.authorization
+    const authorization = req.headers.authorization;
+    if (!authorization || !authorization.includes('Bearer')) {
+      res.sendStatus(httpStatus.UNAUTHORIZED);
+      return;
+    }
+    const currentRefreshToken = authorization.slice(7);
 
     const failMessage = 'Could not refresh token.';
 
     // Note: Check refresh token is included
-    if (!refreshToken) {
+    if (!currentRefreshToken) {
       res.status(httpStatus.UNAUTHORIZED).send({
         message: failMessage,
       });
@@ -174,7 +181,7 @@ class AdminUserController {
         sub: {
           id: string;
         };
-      }>(refreshToken, 'ADMIN_REFRESH_TOKEN_PUBLIC_KEY');
+      }>(currentRefreshToken, 'ADMIN_REFRESH_TOKEN_PUBLIC_KEY');
       if (!decoded) {
         res.status(httpStatus.UNAUTHORIZED).send({
           message: failMessage,
@@ -191,7 +198,7 @@ class AdminUserController {
         return;
       }
 
-      // Note: Sign new access token
+      // Note: Sign (new) access token and refresh token
       const accessToken = jwt.sign(
         {
           sub: {
@@ -200,12 +207,22 @@ class AdminUserController {
         },
         'ADMIN_ACCESS_TOKEN_PRIVATE_KEY',
         {
-          expiresIn: `${accessTokenExpiresIn}h`,
+          expiresIn: `${accessTokenExpiresIn}m`,
+        },
+      );
+      const refreshToken = jwt.sign(
+        {
+          sub: {
+            id: user.id,
+          },
+        },
+        'ADMIN_REFRESH_TOKEN_PRIVATE_KEY',
+        {
+          expiresIn: `${refreshTokenExpiresIn}m`,
         },
       );
 
-      // Note: Send access token in cookie
-      res.cookie('access_token', accessToken, accessTokenCookieOptions);
+      // Note: Send (new) access token and refresh token in cookie
       res.cookie('logged_in', true, {
         ...accessTokenCookieOptions,
         httpOnly: false,
@@ -214,6 +231,7 @@ class AdminUserController {
       res.status(200).json({
         data: {
           accessToken,
+          refreshToken,
         },
       });
     } catch (err) {

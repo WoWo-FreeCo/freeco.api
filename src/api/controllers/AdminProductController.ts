@@ -11,6 +11,7 @@ import httpStatus from 'http-status';
 import AdminProductService from '../services/ProductService';
 import { ProductAttribute } from '.prisma/client';
 import ProductService from '../services/ProductService';
+import { Product, ProductImage, ProductMarkdownInfo } from '../models/Product';
 
 enum Field {
   MARKDOWN_INFOS = 'markdownInfos',
@@ -26,7 +27,7 @@ const indexSchema = number().min(0).required();
 interface CreateBody {
   skuId: string;
   categoryId: number;
-  coverImg?: string;
+  coverImagePath?: string;
   name: string;
   price: number;
   memberPrice: number;
@@ -38,7 +39,7 @@ interface CreateBody {
 const createSchema: ObjectSchema<CreateBody> = object({
   skuId: string().min(1).max(20).required(),
   categoryId: number().required(),
-  coverImg: string().optional(),
+  coverImagePath: string().optional(),
   name: string().required(),
   price: number().min(0).required(),
   memberPrice: number().min(0).required(),
@@ -87,7 +88,7 @@ const putMarkdownInfoListBodySchema: ObjectSchema<PutMarkdownInfoListBody> =
 interface UpdateBody {
   skuId: string;
   categoryId: number;
-  coverImg?: string;
+  coverImagePath?: string;
   name: string;
   price: number;
   memberPrice: number;
@@ -98,7 +99,7 @@ interface UpdateBody {
 const updateSchema: ObjectSchema<UpdateBody> = object({
   skuId: string().min(1).max(20).required(),
   categoryId: number().required(),
-  coverImg: string().optional(),
+  coverImagePath: string().optional(),
   name: string().required(),
   price: number().min(0).required(),
   memberPrice: number().min(0).required(),
@@ -109,30 +110,6 @@ const updateSchema: ObjectSchema<UpdateBody> = object({
     .oneOf([ProductAttribute.GENERAL, ProductAttribute.COLD_CHAIN])
     .optional(),
 });
-
-interface ProductImage {
-  img: string;
-}
-
-interface ProductMarkdownInfo {
-  title: string;
-  text: string;
-}
-interface Product {
-  id: number;
-  skuId: string | null;
-  categoryId: number | null;
-  coverImg: string | null;
-  name: string;
-  price: number;
-  memberPrice: number;
-  vipPrice: number;
-  svipPrice: number;
-  attribute: ProductAttribute;
-  images: {
-    img: string;
-  }[];
-}
 
 class AdminProductController {
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -158,9 +135,17 @@ class AdminProductController {
       }
 
       const product = await AdminProductService.createProduct({
-        ...createBody,
+        categoryId: createBody.categoryId,
+        skuId: createBody.skuId,
+        coverImagePath: createBody.coverImagePath,
+        name: createBody.name,
+        price: createBody.price,
+        memberPrice: createBody.memberPrice,
+        vipPrice: createBody.vipPrice,
+        svipPrice: createBody.svipPrice,
+        attribute: createBody.attribute,
       });
-      if (product) {
+      if (product && product.inventory) {
         const responseData: Product = {
           id: product.id,
           skuId: product.skuId,
@@ -172,7 +157,11 @@ class AdminProductController {
           vipPrice: product.vipPrice,
           svipPrice: product.svipPrice,
           attribute: product.attribute,
+          inventory: {
+            quantity: product.inventory.quantity,
+          },
           images: product.productImages.map((img) => ({
+            index: img.index,
             img: img.imagePath,
           })),
         };
@@ -216,9 +205,17 @@ class AdminProductController {
 
       const product = await AdminProductService.updateProduct({
         id,
-        ...updateBody,
+        categoryId: updateBody.categoryId,
+        skuId: updateBody.skuId,
+        coverImagePath: updateBody.coverImagePath,
+        name: updateBody.name,
+        price: updateBody.price,
+        memberPrice: updateBody.memberPrice,
+        vipPrice: updateBody.vipPrice,
+        svipPrice: updateBody.svipPrice,
+        attribute: updateBody.attribute,
       });
-      if (product) {
+      if (product && product.inventory) {
         const responseData: Product = {
           id: product.id,
           skuId: product.skuId,
@@ -230,7 +227,11 @@ class AdminProductController {
           vipPrice: product.vipPrice,
           svipPrice: product.svipPrice,
           attribute: product.attribute,
+          inventory: {
+            quantity: product.inventory.quantity,
+          },
           images: product.productImages.map((img) => ({
+            index: img.index,
             img: img.imagePath,
           })),
         };
@@ -374,6 +375,7 @@ class AdminProductController {
           return;
         }
         const responseData: ProductImage = {
+          index: productImage.index,
           img: productImage.imagePath,
         };
         res.status(httpStatus.OK).json({
@@ -409,6 +411,7 @@ class AdminProductController {
           return;
         }
         const responseData: ProductMarkdownInfo = {
+          index: productMarkdownInfo.index,
           title: productMarkdownInfo.title,
           text: productMarkdownInfo.text,
         };
@@ -469,6 +472,7 @@ class AdminProductController {
 
         const responseData: ProductImage[] = productImages.map(
           (productImage) => ({
+            index: productImage.index,
             img: productImage.imagePath,
           }),
         );
@@ -504,6 +508,7 @@ class AdminProductController {
           });
         const responseData: ProductMarkdownInfo[] = productMarkdownInfos.map(
           (productMarkdownInfo) => ({
+            index: productMarkdownInfo.index,
             title: productMarkdownInfo.title,
             text: productMarkdownInfo.text,
           }),
@@ -547,6 +552,7 @@ class AdminProductController {
           return;
         }
         const responseData: ProductImage = {
+          index: productImage.index,
           img: productImage.imagePath,
         };
         res.status(httpStatus.OK).json({
@@ -568,6 +574,7 @@ class AdminProductController {
           return;
         }
         const responseData: ProductMarkdownInfo = {
+          index: productMarkdownInfo.index,
           title: productMarkdownInfo.title,
           text: productMarkdownInfo.text,
         };

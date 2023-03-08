@@ -5,6 +5,10 @@ import {
   OrderConsignee,
   OrderInvoiceInfo,
   OrderItem,
+  OrderRevoke,
+  OrderRevokeInvoiceStatus,
+  OrderRevokeLogisticsStatus,
+  OrderRevokePaymentStatus,
   OrderStatus,
 } from '@prisma/client';
 import OneWarehouseClient from '../../utils/one-warehouse/client';
@@ -14,6 +18,8 @@ import { Pagination } from '../../utils/helper/pagination';
 import { ItemPayment } from './PaymentService';
 import BonusPointService from './BonusPointService';
 import { Timeslot, timeslotUtility } from '../../utils/helper/timeslot';
+import ProductInventoryService from './ProductInventoryService';
+
 interface CreateOrderInput {
   userId: string;
   paymentPrice: number;
@@ -88,7 +94,7 @@ interface IOrderService {
   cancelOrderFromWaitPayment(data: { id: string }): Promise<CancelOrderResult>;
   revokeOrderFromWaitDelivery(data: { id: string }): Promise<CancelOrderResult>;
   completeOrderPaymentFromWaitDelivery(data: { id: string }): Promise<boolean>;
-  revokeOrderFromWaitPayment(data: { id: string }): Promise<boolean>;
+  revokeOrderFromCancelled(data: { id: string }): Promise<boolean>;
   getOrderById(data: {
     id: string;
     restrict?: {
@@ -102,16 +108,44 @@ interface IOrderService {
       };
     },
   ): Promise<Order[]>;
-  getOrderDetailById(data: {
+  getOrderDetailIncludesCoverImagePathById(data: {
     id: string;
     restrict?: {
       userId: string;
     };
   }): Promise<
-    | (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })
+    | (Order & {
+        consignee: OrderConsignee | null;
+        orderItems: (OrderItem & {
+          productFromId: { coverImagePath: string | null } | null;
+        })[];
+      })
     | null
   >;
-
+  getOrderDetails(
+    data: GetOrdersInput,
+  ): Promise<
+    (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })[]
+  >;
+  setOrderStatus(data: {
+    id: string;
+    orderStatus: OrderStatus;
+  }): Promise<Order | null>;
+  getOrderRevokeInformationById(data: {
+    id: string;
+  }): Promise<(Order & { revokeInformation: OrderRevoke | null }) | null>;
+  setOrderRevokeInvoiceStatus(data: {
+    id: string;
+    invoiceStatus: OrderRevokeInvoiceStatus;
+  }): Promise<OrderRevoke | null>;
+  setOrderRevokePaymentStatus(data: {
+    id: string;
+    paymentStatus: OrderRevokePaymentStatus;
+  }): Promise<OrderRevoke | null>;
+  setOrderRevokeLogisticsStatus(data: {
+    id: string;
+    logisticsStatus: OrderRevokeLogisticsStatus;
+  }): Promise<OrderRevoke | null>;
   getOrderDetailByMerchantTradeNo(data: {
     merchantTradeNo: string;
   }): Promise<
@@ -179,6 +213,17 @@ class OrderService implements IOrderService {
             data.consignee.requiredDeliveryTimeslots,
           )
         : { dates: '', slots: '' };
+
+    // Note: Bad Code！！！
+    data.items.forEach((item) => {
+      if (item.productId) {
+        ProductInventoryService.subtract({
+          productId: item.productId,
+          quantity: item.quantity,
+        });
+      }
+    });
+
     return prisma.order.create({
       data: {
         userId: data.userId,
@@ -251,6 +296,22 @@ class OrderService implements IOrderService {
     });
   }
 
+  async completeOrderPaymentFromWaitDelivery(data: {
+    id: string;
+  }): Promise<boolean> {
+    const result = await prisma.order.updateMany({
+      where: {
+        id: data.id,
+        orderStatus: OrderStatus.WAIT_PAYMENT,
+      },
+      data: {
+        orderStatus: OrderStatus.WAIT_DELIVER,
+      },
+    });
+
+    return result.count === 1;
+  }
+
   async cancelOrderFromWaitPayment(data: {
     id: string;
   }): Promise<CancelOrderResult> {
@@ -269,10 +330,27 @@ class OrderService implements IOrderService {
       };
     }
 
+    // Note: 補回庫存
+    const orderItems = await prisma.orderItem.findMany({
+      where: {
+        orderId: data.id,
+      },
+    });
+    // Note: Bad Code！！！
+    orderItems.forEach((item) => {
+      if (item.productId) {
+        ProductInventoryService.add({
+          productId: item.productId,
+          quantity: item.quantity,
+        });
+      }
+    });
+
     return {
       code: CancelOrderResultCode.SUCCESS,
     };
   }
+
   async revokeOrderFromWaitDelivery(data: {
     id: string;
   }): Promise<CancelOrderResult> {
@@ -290,39 +368,75 @@ class OrderService implements IOrderService {
         code: CancelOrderResultCode.CO002,
       };
     }
+    // Note: 補回庫存
+    const orderItems = await prisma.orderItem.findMany({
+      where: {
+        orderId: data.id,
+      },
+    });
+    // Note: Bad Code！！！
+    orderItems.forEach((item) => {
+      if (item.productId) {
+        ProductInventoryService.add({
+          productId: item.productId,
+          quantity: item.quantity,
+        });
+      }
+    });
 
+    // Note: 產生退貨資料
+    // (1) 等待作廢發票
+    // (2) 等待退款
+    // (3) 等待取消物流
+    await this.initOrderRevoke({
+      id: data.id,
+      invoiceStatus: OrderRevokeInvoiceStatus.WAIT_CANCEL,
+      paymentStatus: OrderRevokePaymentStatus.WAIT_REFUND,
+      logisticsStatus: OrderRevokeLogisticsStatus.WAIT_CANCEL,
+    });
     return {
       code: CancelOrderResultCode.SUCCESS,
     };
   }
-  async completeOrderPaymentFromWaitDelivery(data: {
-    id: string;
-  }): Promise<boolean> {
+
+  async revokeOrderFromCancelled(data: { id: string }): Promise<boolean> {
     const result = await prisma.order.updateMany({
       where: {
         id: data.id,
-        orderStatus: OrderStatus.WAIT_PAYMENT,
-      },
-      data: {
-        orderStatus: OrderStatus.WAIT_DELIVER,
-      },
-    });
-
-    return result.count === 1;
-  }
-
-  async revokeOrderFromWaitPayment(data: { id: string }): Promise<boolean> {
-    const result = await prisma.order.updateMany({
-      where: {
-        id: data.id,
-        orderStatus: OrderStatus.WAIT_PAYMENT,
+        orderStatus: OrderStatus.CANCELLED,
       },
       data: {
         orderStatus: OrderStatus.REVOKED,
       },
     });
 
+    // Note: 產生退貨資料
+    // (1) 未開立發票
+    // (2) 等待退款
+    // (3) 等待取消物流
+    await this.initOrderRevoke({
+      id: data.id,
+      invoiceStatus: OrderRevokeInvoiceStatus.UNISSUED,
+      paymentStatus: OrderRevokePaymentStatus.WAIT_REFUND,
+      logisticsStatus: OrderRevokeLogisticsStatus.WAIT_CANCEL,
+    });
     return result.count === 1;
+  }
+
+  async initOrderRevoke(data: {
+    id: string;
+    invoiceStatus: OrderRevokeInvoiceStatus;
+    paymentStatus: OrderRevokePaymentStatus;
+    logisticsStatus: OrderRevokeLogisticsStatus;
+  }): Promise<void> {
+    await prisma.orderRevoke.create({
+      data: {
+        orderId: data.id,
+        invoiceStatus: data.invoiceStatus,
+        paymentStatus: data.paymentStatus,
+        logisticsStatus: data.logisticsStatus,
+      },
+    });
   }
   async getOrderById(data: {
     id: string;
@@ -358,13 +472,18 @@ class OrderService implements IOrderService {
       },
     });
   }
-  async getOrderDetailById(data: {
+  async getOrderDetailIncludesCoverImagePathById(data: {
     id: string;
     restrict?: {
       userId: string;
     };
   }): Promise<
-    | (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })
+    | (Order & {
+        consignee: OrderConsignee | null;
+        orderItems: (OrderItem & {
+          productFromId: { coverImagePath: string | null } | null;
+        })[];
+      })
     | null
   > {
     return prisma.order.findFirst({
@@ -374,9 +493,122 @@ class OrderService implements IOrderService {
       },
       include: {
         consignee: true,
-        orderItems: true,
+        orderItems: {
+          include: {
+            productFromId: {
+              select: {
+                coverImagePath: true,
+              },
+            },
+          },
+        },
       },
     });
+  }
+  async getOrderDetails(
+    data: GetOrdersInput,
+  ): Promise<
+    (Order & { consignee: OrderConsignee | null; orderItems: OrderItem[] })[]
+  > {
+    const {
+      attribute,
+      pagination: { take, skip },
+    } = data;
+    return prisma.order.findMany({
+      where: {
+        attribute,
+      },
+      take,
+      skip,
+      include: {
+        consignee: true,
+        orderItems: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+  async setOrderStatus(data: {
+    id: string;
+    orderStatus: OrderStatus;
+  }): Promise<Order | null> {
+    try {
+      return await prisma.order.update({
+        where: {
+          id: data.id,
+        },
+        data: {
+          orderStatus: data.orderStatus,
+        },
+      });
+    } catch (err) {
+      return null;
+    }
+  }
+  async getOrderRevokeInformationById(data: {
+    id: string;
+  }): Promise<(Order & { revokeInformation: OrderRevoke | null }) | null> {
+    return prisma.order.findFirst({
+      where: {
+        id: data.id,
+      },
+      include: {
+        revokeInformation: true,
+      },
+    });
+  }
+
+  async setOrderRevokeInvoiceStatus(data: {
+    id: string;
+    invoiceStatus: OrderRevokeInvoiceStatus;
+  }): Promise<OrderRevoke | null> {
+    try {
+      return await prisma.orderRevoke.update({
+        where: {
+          orderId: data.id,
+        },
+        data: {
+          invoiceStatus: data.invoiceStatus,
+        },
+      });
+    } catch (err) {
+      return null;
+    }
+  }
+  async setOrderRevokePaymentStatus(data: {
+    id: string;
+    paymentStatus: OrderRevokePaymentStatus;
+  }): Promise<OrderRevoke | null> {
+    try {
+      return await prisma.orderRevoke.update({
+        where: {
+          orderId: data.id,
+        },
+        data: {
+          paymentStatus: data.paymentStatus,
+        },
+      });
+    } catch (err) {
+      return null;
+    }
+  }
+  async setOrderRevokeLogisticsStatus(data: {
+    id: string;
+    logisticsStatus: OrderRevokeLogisticsStatus;
+  }): Promise<OrderRevoke | null> {
+    try {
+      return await prisma.orderRevoke.update({
+        where: {
+          orderId: data.id,
+        },
+        data: {
+          logisticsStatus: data.logisticsStatus,
+        },
+      });
+    } catch (err) {
+      return null;
+    }
   }
   async getOrderDetailByMerchantTradeNo(data: {
     merchantTradeNo: string;

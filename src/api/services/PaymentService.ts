@@ -6,17 +6,11 @@ import {
   UserActivation,
 } from '@prisma/client';
 import moment from 'moment/moment';
-import ecpayOptions from '../../utils/ecpay/conf';
-import EcpayPayment from 'ecpay_aio_nodejs/lib/ecpay_payment';
-import EcpayInvoice from 'ecpay_invoice_nodejs/lib/ecpay_invoice';
 import ecpayBaseOptions from '../../utils/ecpay/conf/baseOptions';
 import userService, { MemberLevel } from './UserService';
 import prisma from '../../database/client/prisma';
 import Logger from '../../utils/logger';
-import {
-  AddressType,
-  checkAddressType,
-} from '../../utils/helper/address/index';
+import { AddressType, checkAddressType } from '../../utils/helper/address';
 import {
   TAIWAN_ISLAND_DELIVERY_FEE_ID,
   OUTLYING_ISLAND_DELIVERY_FEE_ID,
@@ -24,6 +18,13 @@ import {
   FREE_DELIVERY_PRICE_THRESHOLD_ID,
 } from '../../utils/constant';
 import { Timeslot } from '../../utils/helper/timeslot';
+import {
+  ecpayInvoiceClient,
+  ecpayPaymentClient,
+} from '../../utils/ecpay/client';
+import OrderService from './OrderService';
+import { parseECPayResponse } from '../../utils/ecpay/common';
+import ProductInventoryService from './ProductInventoryService';
 
 interface Consignee {
   deliveryType: 'HOME' | 'STORE';
@@ -147,6 +148,7 @@ export interface SettlementResult {
   bonusPointRedemption: number;
   quantity: number;
   paymentPrice: number;
+  inventoryEnough: boolean;
 }
 export interface ItemPayment {
   productId: number | null;
@@ -159,44 +161,10 @@ interface IPaymentService {
   payment(data: PaymentInput): Promise<string | null>;
   settlement(data: SettlementInput): Promise<SettlementResult | null>;
   issueInvoice(data: IssueInvoiceInput): Promise<void>;
+  cancelInvoice(data: { orderId: string }): Promise<boolean>;
 }
 
 class PaymentService implements IPaymentService {
-  async issueInvoice(data: IssueInvoiceInput): Promise<void> {
-    const create = new EcpayInvoice();
-    const response = await create.invoice_client.ecpay_invoice_issue({
-      RelateNumber: data.invoiceInfo.orderRelateNumber,
-      CustomerID: data.invoiceInfo.customerID || '',
-      CustomerIdentifier: data.invoiceInfo.customerIdentifier || '',
-      CustomerName: data.invoiceInfo.customerName || '',
-      CustomerAddr: data.invoiceInfo.customerAddr || '',
-      CustomerPhone: data.invoiceInfo.customerPhone || '',
-      CustomerEmail: data.invoiceInfo.customerEmail || '',
-      ClearanceMark: data.invoiceInfo.clearanceMark || '',
-      Print: data.invoiceInfo.print,
-      Donation: data.invoiceInfo.donation,
-      LoveCode: data.invoiceInfo.loveCode || '',
-      CarruerType: data.invoiceInfo.carruerType || '',
-      CarruerNum: data.invoiceInfo.carruerNum || '',
-      TaxType: data.invoiceInfo.taxType,
-      SalesAmount: data.invoiceInfo.salesAmount,
-      InvoiceRemark: data.invoiceInfo.remark || '',
-      ItemName: data.invoiceInfo.itemName,
-      ItemCount: data.invoiceInfo.itemCount,
-      ItemWord: data.invoiceInfo.itemWord,
-      ItemPrice: data.invoiceInfo.itemPrice,
-      ItemTaxType: data.invoiceInfo.itemTaxType || '',
-      ItemAmount: data.invoiceInfo.itemAmount,
-      ItemRemark: data.invoiceInfo.itemRemark,
-      InvType: data.invoiceInfo.invType,
-      vat: data.invoiceInfo.vat,
-    });
-    Logger.info(
-      `RelateNumber: ${data.invoiceInfo.orderRelateNumber} - ${response}`,
-    );
-  }
-  // private static readonly DEFAULT_DELIVERY_FEE: number = 60;
-
   private static paymentPriceCalculate(data: {
     memberLevel: MemberLevel;
     priceInfo: {
@@ -349,21 +317,21 @@ class PaymentService implements IPaymentService {
         ...result,
         InvoiceItemName:
           result.InvoiceItemName === ''
-            ? item.name
+            ? result.InvoiceItemName + item.name
             : result.InvoiceItemName + `|${item.name}`,
         InvoiceItemCount:
           result.InvoiceItemCount === ''
-            ? item.quantity
+            ? result.InvoiceItemCount + item.quantity
             : result.InvoiceItemCount + `|${item.quantity}`,
         InvoiceItemWord:
           result.InvoiceItemWord === '' ? `個` : result.InvoiceItemWord + `|個`,
         InvoiceItemPrice:
           result.InvoiceItemPrice === ''
-            ? item.price
+            ? result.InvoiceItemPrice + item.price
             : result.InvoiceItemPrice + `|${item.price}`,
         InvoiceItemTaxType:
           result.InvoiceItemTaxType === ''
-            ? '1'
+            ? result.InvoiceItemTaxType + '1'
             : result.InvoiceItemTaxType + '|1',
       }),
       {
@@ -395,17 +363,16 @@ class PaymentService implements IPaymentService {
       DelayDay: '0',
       ...invoiceItem,
     };
-    const create = new EcpayPayment(ecpayOptions);
     let html = null;
     switch (data.paymentParams.choosePayment) {
       case 'CREDIT_ONE_TIME':
-        html = create.payment_client.aio_check_out_credit_onetime(
+        html = ecpayPaymentClient().payment_client.aio_check_out_credit_onetime(
           base_param,
           inv_params,
         );
         break;
       case 'CVS':
-        html = create.payment_client.aio_check_out_cvs(
+        html = ecpayPaymentClient().payment_client.aio_check_out_cvs(
           {
             Desc_1: '',
             Desc_2: '',
@@ -419,7 +386,7 @@ class PaymentService implements IPaymentService {
         );
         break;
       case 'BARCODE':
-        html = create.payment_client.aio_check_out_barcode(
+        html = ecpayPaymentClient().payment_client.aio_check_out_barcode(
           {
             Desc_1: '',
             Desc_2: '',
@@ -447,6 +414,15 @@ class PaymentService implements IPaymentService {
     // Note: (商品系統)
     const { itemizationList, anyProductNotExists } =
       await ProductService.productsItemization(data.products);
+    const inventoryEnough =
+      await ProductInventoryService.checkItemsIfInventoryEnough({
+        items: itemizationList
+          .filter((i) => i.productId !== null)
+          .map((i: ProductsItemization & { productId: number }) => ({
+            productId: i.productId,
+            quantity: i.quantity,
+          })),
+      });
     if (anyProductNotExists) {
       return null;
     }
@@ -487,6 +463,7 @@ class PaymentService implements IPaymentService {
       priceInfo,
       paymentPrice,
       bonusPointRedemption,
+      inventoryEnough,
     };
 
     // Note: 將運費紀為一筆 item
@@ -536,6 +513,82 @@ class PaymentService implements IPaymentService {
 
     // Note: 回傳結算結果
     return settleResult;
+  }
+  async issueInvoice(data: IssueInvoiceInput): Promise<void> {
+    const response =
+      await ecpayInvoiceClient().invoice_client.ecpay_invoice_issue({
+        RelateNumber: data.invoiceInfo.orderRelateNumber,
+        CustomerID: data.invoiceInfo.customerID || '',
+        CustomerIdentifier: data.invoiceInfo.customerIdentifier || '',
+        CustomerName: data.invoiceInfo.customerName || '',
+        CustomerAddr: data.invoiceInfo.customerAddr || '',
+        CustomerPhone: data.invoiceInfo.customerPhone || '',
+        CustomerEmail: data.invoiceInfo.customerEmail || '',
+        ClearanceMark: data.invoiceInfo.clearanceMark || '',
+        Print: data.invoiceInfo.print,
+        Donation: data.invoiceInfo.donation,
+        LoveCode: data.invoiceInfo.loveCode || '',
+        CarruerType: data.invoiceInfo.carruerType || '',
+        CarruerNum: data.invoiceInfo.carruerNum || '',
+        TaxType: data.invoiceInfo.taxType,
+        SalesAmount: data.invoiceInfo.salesAmount,
+        InvoiceRemark: data.invoiceInfo.remark || '',
+        ItemName: data.invoiceInfo.itemName,
+        ItemCount: data.invoiceInfo.itemCount,
+        ItemWord: data.invoiceInfo.itemWord,
+        ItemPrice: data.invoiceInfo.itemPrice,
+        ItemTaxType: data.invoiceInfo.itemTaxType || '',
+        ItemAmount: data.invoiceInfo.itemAmount,
+        ItemRemark: data.invoiceInfo.itemRemark,
+        InvType: data.invoiceInfo.invType,
+        vat: data.invoiceInfo.vat,
+      });
+    Logger.info(
+      `RelateNumber: ${data.invoiceInfo.orderRelateNumber} - ${response}`,
+    );
+  }
+  async cancelInvoice(data: { orderId: string }): Promise<boolean> {
+    const order = await OrderService.getOrderById({ id: data.orderId });
+
+    if (!order) {
+      Logger.error(
+        `Get Order By Id failed - it could be internal error somewhere`,
+      );
+      return false;
+    }
+
+    const { relateNumber } = order;
+    const queryInvoiceResponse =
+      await ecpayInvoiceClient().query_client.ecpay_query_invoice_issue({
+        RelateNumber: relateNumber, // 輸入合作特店自訂的編號，長度為30字元
+      });
+
+    const queryInvoiceResObj = parseECPayResponse<{
+      RtnCode: string;
+      IIS_Number: string;
+    }>(queryInvoiceResponse);
+    if (queryInvoiceResObj.RtnCode !== '1') {
+      Logger.error(`Query invoice failed - ${queryInvoiceResObj}`);
+      return false;
+    }
+
+    const invoiceNumber = queryInvoiceResObj.IIS_Number;
+    const cancelInvoiceResponse =
+      await ecpayInvoiceClient().invoice_client.ecpay_invoice_issue_invalid({
+        InvoiceNumber: invoiceNumber, // 發票號碼，長度為10字元
+        Reason: '無特殊原因', // 作廢原因，長度為20字元
+      });
+
+    const cancelInvoiceResObj = parseECPayResponse<{ RtnCode: string }>(
+      cancelInvoiceResponse,
+    );
+    if (cancelInvoiceResObj.RtnCode !== '1') {
+      Logger.error(`Cancel invoice failed - ${cancelInvoiceResObj}`);
+      return false;
+    }
+
+    Logger.info(`InvoiceNumber: ${invoiceNumber} - ${cancelInvoiceResObj}`);
+    return true;
   }
 }
 
