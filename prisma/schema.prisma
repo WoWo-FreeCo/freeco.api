@@ -38,26 +38,27 @@ model UserActivation {
 }
 
 model User {
-  id            String           @id @default(uuid()) @db.VarChar(36)
-  email         String           @unique
-  password      String
-  nickname      String?
-  cellphone     String           @unique @db.VarChar(15)
-  telephone     String?          @db.VarChar(15)
-  addressOne    String
-  addressTwo    String?
-  addressThree  String?
-  taxIDNumber   String?          @db.VarChar(18)
-  rewardCredit  Int
-  recommendCode String           @unique @db.VarChar(36)
-  recommendedBy String?          @db.VarChar(36)
-  activation    UserActivation?
-  dailyChecks   UserDailyCheck[]
-  orders        Order[]
-  bonusPoints   BonusPoint[]
-  type          DateTime?        @db.Timestamp(0)
-  createdAt     DateTime         @default(now()) @db.Timestamp(0)
-  updatedAt     DateTime         @updatedAt @db.Timestamp(0)
+  id               String            @id @default(uuid()) @db.VarChar(36)
+  email            String            @unique
+  password         String
+  nickname         String?
+  cellphone        String            @unique @db.VarChar(15)
+  telephone        String?           @db.VarChar(15)
+  addressOne       String
+  addressTwo       String?
+  addressThree     String?
+  taxIDNumber      String?           @db.VarChar(18)
+  rewardCredit     Int
+  recommendCode    String            @unique @db.VarChar(36)
+  recommendedBy    String?           @db.VarChar(36)
+  activation       UserActivation?
+  dailyChecks      UserDailyCheck[]
+  orders           Order[]
+  bonusPoints      BonusPoint[]
+  shoppingSessions ShoppingSession[]
+  type             DateTime?         @db.Timestamp(0)
+  createdAt        DateTime          @default(now()) @db.Timestamp(0)
+  updatedAt        DateTime          @updatedAt @db.Timestamp(0)
 
   @@index([cellphone])
   @@index([taxIDNumber])
@@ -284,6 +285,7 @@ model Product {
   productImages        ProductImage[]
   productMarkdownInfos ProductMarkdownInfo[]
   inventory            ProductInventory?
+  cartItems            CartItem[]
 }
 
 model ProductInventory {
@@ -311,6 +313,27 @@ model ProductMarkdownInfo {
   productId Int
 
   @@id([productId, index])
+}
+
+model ShoppingSession {
+  id        Int              @id @default(autoincrement())
+  attribute ProductAttribute
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId    String           @db.VarChar(36)
+  cartItems CartItem[]
+  createdAt DateTime         @default(now()) @db.Timestamp(0)
+  updatedAt DateTime         @updatedAt @db.Timestamp(0)
+}
+
+model CartItem {
+  id                Int             @id @default(autoincrement())
+  shoppingSession   ShoppingSession @relation(fields: [shoppingSessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  shoppingSessionId Int
+  product           Product?        @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  productId         Int?
+  quantity          Int
+  createdAt         DateTime        @default(now()) @db.Timestamp(0)
+  updatedAt         DateTime        @updatedAt @db.Timestamp(0)
 }
 
 model HomeBanner {
