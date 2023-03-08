@@ -55,6 +55,7 @@ model User {
   dailyChecks   UserDailyCheck[]
   orders        Order[]
   bonusPoints   BonusPoint[]
+  type          DateTime?        @db.Timestamp(0)
   createdAt     DateTime         @default(now()) @db.Timestamp(0)
   updatedAt     DateTime         @updatedAt @db.Timestamp(0)
 

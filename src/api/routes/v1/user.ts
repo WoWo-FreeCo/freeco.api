@@ -33,5 +33,9 @@ userRoute
     '/activity/daily-check/record',
     AuthMiddleware.authenticate('user'),
     UserActivityController.getDailyCheckRecord,
-  );
+  )
+  // 忘記密碼
+  .post('/forgot-password', UserController.forgotPassword)
+  // 重置密碼
+  .post('/reset-password', UserController.resetPassword);
 export default userRoute;
