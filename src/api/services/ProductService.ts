@@ -319,6 +319,7 @@ class ProductService implements IProductService {
       });
       return { id: result.id };
     } catch (err) {
+      console.log(err);
       return null;
     }
   }
