@@ -125,8 +125,15 @@ interface IssueInvoiceInput {
   // vat: string;
   invoiceInfo: OrderInvoiceInfo;
 }
+
+enum SettlementItemType {
+  PRODUCT = 'PRODUCT',
+  REDEMPTION = 'REDEMPTION',
+  DELIVERY_FEE = 'DELIVERY_FEE',
+}
 export interface SettlementResult {
   items: {
+    type: SettlementItemType;
     productId: number | null;
     productSkuId: string | null;
     name: string;
@@ -270,6 +277,7 @@ class PaymentService implements IPaymentService {
           : memberLevel === 'SVIP'
           ? item.svipPrice
           : item.price,
+      type: SettlementItemType.PRODUCT,
     }));
   }
 
@@ -478,6 +486,7 @@ class PaymentService implements IPaymentService {
         svipPrice: settleResult.deliveryFee,
         paymentPrice: settleResult.deliveryFee,
         quantity: 1,
+        type: SettlementItemType.DELIVERY_FEE,
       });
       settleResult.quantity += 1;
       settleResult.priceInfo.price += settleResult.deliveryFee;
@@ -499,6 +508,7 @@ class PaymentService implements IPaymentService {
         svipPrice: 0 - settleResult.bonusPointRedemption,
         paymentPrice: 0 - settleResult.bonusPointRedemption,
         quantity: 1,
+        type: SettlementItemType.REDEMPTION,
       });
       settleResult.quantity += 1;
       settleResult.priceInfo.price -= settleResult.bonusPointRedemption;
