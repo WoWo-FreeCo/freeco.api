@@ -9,7 +9,7 @@ interface AddBody {
 }
 
 const addBodySchema: ObjectSchema<AddBody> = object({
-  quantity: number().min(1).required(),
+  quantity: number().required(),
 });
 
 interface InventoryOperationResult {
