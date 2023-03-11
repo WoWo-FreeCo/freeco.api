@@ -2,6 +2,7 @@ import { Router } from 'express';
 import UserController from '../../controllers/UserController';
 import AuthMiddleware from '../../middlewares/AuthMiddleware';
 import UserActivityController from '../../controllers/UserActivityController';
+import GoogleUserController from '../../controllers/googleUserController/index';
 import ShoppingSessionController from '../../controllers/ShoppingSessionController';
 
 const userShoppingSessionRouter: Router = Router();
@@ -43,7 +44,8 @@ userRoute
     '/profile',
     AuthMiddleware.authenticate('user'),
     UserController.getProfile,
-  ).get(
+  )
+  .get(
     '/bonus-point-records',
     AuthMiddleware.authenticate('user'),
     UserController.getBonusPointRecords,
@@ -57,6 +59,22 @@ userRoute
   .use(
     '/shopping-session',
     AuthMiddleware.authenticate('user'),
-    userShoppingSessionRouter,
-  );
+    UserActivityController.activate,
+  )
+  .post(
+    '/activity/daily-check/:index',
+    AuthMiddleware.authenticate('user'),
+    UserActivityController.dailyCheck,
+  )
+  .get(
+    '/activity/daily-check/record',
+    AuthMiddleware.authenticate('user'),
+    UserActivityController.getDailyCheckRecord,
+  )
+  // 忘記密碼
+  .post('/forgot-password', UserController.forgotPassword)
+  // 重置密碼
+  .post('/reset-password', UserController.resetPassword)
+  .post('/google-login', GoogleUserController.login);
+//   .get('/google-user', GoogleUserController.testGetUser);
 export default userRoute;

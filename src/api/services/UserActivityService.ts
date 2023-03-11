@@ -1,6 +1,6 @@
 import prisma from '../../database/client/prisma';
 import { UserDailyCheck } from '@prisma/client';
-import UserService from './UserService';
+import UserService from './userService/index';
 
 interface ActivateUserActivityInput {
   userId: string;

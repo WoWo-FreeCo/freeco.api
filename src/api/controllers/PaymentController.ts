@@ -9,7 +9,7 @@ import {
 } from 'yup';
 import httpStatus from 'http-status';
 import Logger from '../../utils/logger';
-import UserService from '../services/UserService';
+import UserService from '../services/userService/index';
 import PaymentService, { SettlementResult } from '../services/PaymentService';
 import OrderService from '../services/OrderService';
 import config from 'config';
