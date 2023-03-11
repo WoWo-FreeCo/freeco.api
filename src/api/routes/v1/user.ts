@@ -43,6 +43,10 @@ userRoute
     '/profile',
     AuthMiddleware.authenticate('user'),
     UserController.getProfile,
+  ).get(
+    '/bonus-point-records',
+    AuthMiddleware.authenticate('user'),
+    UserController.getBonusPointRecords,
   )
   .put(
     '/basic',

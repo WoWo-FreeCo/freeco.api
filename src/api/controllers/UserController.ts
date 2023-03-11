@@ -409,6 +409,24 @@ class UserController {
     }
   }
 
+  async getBonusPointRecords(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { id } = req.userdata;
+      const records = await BonusPointService.getUserBonusPointRecords( id );
+      if (records) {
+        res.status(httpStatus.OK).json({ data: records });
+      } else {
+        res.sendStatus(httpStatus.NOT_FOUND);
+      }
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async updateUserInfo(
     req: Request,
     res: Response,
