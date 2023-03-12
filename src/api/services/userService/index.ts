@@ -157,7 +157,7 @@ class UserService implements IUserService {
         email: data.email,
         password: data.password ?? null,
         nickname: data.nickname,
-        cellphone: data.cellphone,
+        cellphone: data.cellphone ?? null,
         telephone: data.telephone,
         rewardCredit: data.defaultReward || 0,
         activation: {
