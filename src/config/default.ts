@@ -41,4 +41,8 @@ export default {
   CLIENT_HOST_NAME: process.env.CLIENT_HOST_NAME,
   // email hash SECRET
   EMAIL_HASH_SECRET: process.env.EMAIL_HASH_SECRET,
+  // google 三方登入 id
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  // google secret
+  GOOGLE_SECRET: process.env.GOOGLE_CLIENT_ID,
 };

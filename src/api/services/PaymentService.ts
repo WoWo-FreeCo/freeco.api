@@ -7,7 +7,8 @@ import {
 } from '@prisma/client';
 import moment from 'moment/moment';
 import ecpayBaseOptions from '../../utils/ecpay/conf/baseOptions';
-import userService, { MemberLevel } from './UserService';
+import userService from './userService/index';
+import { MemberLevel } from '../services/userService/interface';
 import prisma from '../../database/client/prisma';
 import Logger from '../../utils/logger';
 import { AddressType, checkAddressType } from '../../utils/helper/address';

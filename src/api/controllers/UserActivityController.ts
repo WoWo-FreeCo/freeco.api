@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { number, object, ObjectSchema, string, ValidationError } from 'yup';
 import httpStatus from 'http-status';
-import UserService from '../services/UserService';
+import UserService from '../services/userService/index';
 import UserActivityService from '../services/UserActivityService';
 import CheckContentService from '../services/CheckContentService';
 import BonusPointService from '../services/BonusPointService';

@@ -40,18 +40,20 @@ model UserActivation {
 model User {
   id               String            @id @default(uuid()) @db.VarChar(36)
   email            String            @unique
-  password         String
+  password         String?
   nickname         String?
-  cellphone        String            @unique @db.VarChar(15)
+  cellphone        String?            @unique @db.VarChar(15)
   telephone        String?           @db.VarChar(15)
-  addressOne       String
+  addressOne       String?
   addressTwo       String?
   addressThree     String?
   taxIDNumber      String?           @db.VarChar(18)
-  rewardCredit     Int
-  recommendCode    String            @unique @db.VarChar(36)
+  rewardCredit     Int?
+  recommendCode    String?            @unique @db.VarChar(36)
   recommendedBy    String?           @db.VarChar(36)
   activation       UserActivation?
+  googleUser       GoogleUser?
+  facebookUser     FacebookUser?
   dailyChecks      UserDailyCheck[]
   orders           Order[]
   bonusPoints      BonusPoint[]
@@ -73,6 +75,41 @@ model AdminUser {
   updatedAt DateTime @updatedAt @db.Timestamp(0)
 
   @@index([email])
+}
+
+model GoogleUser {
+    id               String           @id @default(uuid()) @db.VarChar(36)
+    accountId        String           @db.VarChar(255)
+    email            String?          @unique
+    family_name      String?          @db.VarChar(255)
+    given_name       String?          @db.VarChar(255)
+    gsuite_domain    String?          @db.VarChar(255)
+    locale           String?          @db.VarChar(10)
+    name             String?          @db.VarChar(255)
+    picture          String?          @db.VarChar(255)
+    status           Int              @default(0) @db.TinyInt()
+    last_login_at    DateTime?        @db.Timestamp(0)
+    user             User?            @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+    userId           String?          @unique @db.VarChar(36)
+
+    @@index([accountId, email])
+}
+
+model FacebookUser {
+    id               String           @id @default(uuid()) @db.VarChar(36)
+    asid             String           @db.VarChar(500)
+    email            String?          @unique
+    name             String?          @db.VarChar(255)
+    first_name       String?          @db.VarChar(255)
+    last_name        String?          @db.VarChar(255)
+    middle_name      String?          @db.VarChar(255)
+    picture          String?          @db.VarChar(255)
+    status           Int              @default(0) @db.TinyInt()
+    last_login_at    DateTime?        @db.Timestamp(0)
+    user             User?            @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+    userId           String?          @unique @db.VarChar(36)
+    
+    @@index([asid, email])
 }
 
 enum BonusPointActivityType {

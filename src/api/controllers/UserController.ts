@@ -1,5 +1,6 @@
-import { CookieOptions, NextFunction, Request, Response } from 'express';
-import UserService, { MemberLevel } from '../services/UserService';
+import { NextFunction, Request, Response } from 'express';
+import UserService from '../services/userService/index';
+import { MemberLevel } from '../services/userService/interface';
 import { number, object, ObjectSchema, string, ValidationError } from 'yup';
 import httpStatus from 'http-status';
 import bcrypt from 'bcrypt';
@@ -8,33 +9,9 @@ import config from 'config';
 import { Pagination } from '../../utils/helper/pagination';
 import BonusPointService from '../services/BonusPointService';
 import userController from './UserController';
-import UserActivityService from '../services/UserActivityService';
 import MailgunService from '../services/MailgunService';
-
-interface RegisterBody {
-  email: string;
-  password: string;
-  nickname?: string;
-  cellphone: string;
-  telephone?: string;
-  addressOne: string;
-  addressTwo?: string;
-  addressThree?: string;
-  // Note: 推薦帳號
-  recommendedAccount?: string;
-}
-
-const registerSchema: ObjectSchema<RegisterBody> = object({
-  email: string().email().required(),
-  password: string().required(),
-  nickname: string().optional(),
-  cellphone: string().required(),
-  telephone: string().optional(),
-  addressOne: string().required(),
-  addressTwo: string().optional(),
-  addressThree: string().optional(),
-  recommendedAccount: string().optional(),
-});
+import AuthService from '../services/authService/index';
+import { accessTokenCookieOptions } from '../services/authService/AuthConfig';
 
 interface UpdateUserInfoBody {
   email: string;
@@ -95,13 +72,13 @@ interface ProfileResponse {
   email: string;
   nickname: string | null;
   taxIDNumber: string | null;
-  cellphone: string;
+  cellphone?: string | null;
   telephone: string | null;
-  addressOne: string;
+  addressOne?: string | null;
   addressTwo: string | null;
   addressThree: string | null;
-  rewardCredit: number;
-  recommendCode: string;
+  rewardCredit?: number | null;
+  recommendCode?: string | null;
   memberLevel: MemberLevel | null;
   YouTubeChannelActivated: boolean | null;
   FacebookGroupActivated: boolean | null;
@@ -109,21 +86,6 @@ interface ProfileResponse {
   VIPActivated: boolean | null;
   SVIPActivated: boolean | null;
 }
-
-// Note:
-// Cookie options, default access token is 1 minute and refresh token is 30 minutes
-const accessTokenExpiresIn = config.has('ACCESS_TOKEN_EXPIRES_IN')
-  ? config.get<number>('ACCESS_TOKEN_EXPIRES_IN')
-  : 1;
-const refreshTokenExpiresIn = config.has('REFRESH_TOKEN_EXPIRES_IN')
-  ? config.get<number>('REFRESH_TOKEN_EXPIRES_IN')
-  : 30;
-const accessTokenCookieOptions: CookieOptions = {
-  expires: new Date(Date.now() + accessTokenExpiresIn * 60 * 1000),
-  maxAge: accessTokenExpiresIn * 60 * 1000,
-  httpOnly: true,
-  sameSite: 'lax',
-};
 
 // const refreshTokenCookieOptions: CookieOptions = {
 //   expires: new Date(Date.now() + refreshTokenExpiresIn * 60 * 1000),
@@ -133,83 +95,20 @@ const accessTokenCookieOptions: CookieOptions = {
 // };
 
 class UserController {
+  /**
+   * 註冊 api
+   * @param req
+   * @param res
+   * @param next
+   */
   async register(
     req: Request,
     res: Response,
     next: NextFunction,
   ): Promise<void> {
-    let registerBody: RegisterBody;
     try {
-      // Note: Check request body is valid
-      registerBody = await registerSchema.validate(req.body);
-    } catch (err) {
-      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
-      return;
-    }
-    try {
-      // Note: Check email or cellphone is used
-      if (await UserService.getUserByEmail({ ...registerBody })) {
-        res.status(httpStatus.CONFLICT).send({
-          message: 'Email is already used.',
-        });
-        return;
-      }
-      if (await UserService.getUserByCellphone({ ...registerBody })) {
-        res.status(httpStatus.CONFLICT).send({
-          message: 'Cellphone is already used.',
-        });
-        return;
-      }
-
-      // Note: Auto-gen a `Salt` and hash password
-      const hashedPassword = await bcrypt.hash(registerBody.password, 10);
-
-      // Note: Create user
-      const user = await UserService.createUser({
-        ...registerBody,
-        password: hashedPassword,
-      });
-
-      // Note: 推薦帳號，使用綁定VIP推薦人
-      if (registerBody.recommendedAccount) {
-        await UserActivityService.activateUserActivity({
-          userId: user.id,
-          kind: 'VIP',
-          code: registerBody.recommendedAccount,
-        });
-      }
-
-      // Send register bonus points
-      await BonusPointService.gainFromRegisterMembership(user.id);
-
-      // 生成加密 email 值
-      const hashData = await MailgunService.encodeEmail({
-        email: registerBody.email,
-      });
-
-      const host = config.get<string>('HOST');
-      const apiPort = config.get<string>('API_PORT');
-      const link = `${host}:${apiPort}/api/v1/mail/validation-email?email=${hashData}`;
-      const details = {
-        from: `${config.get<string>(
-          'CLIENT_HOST_NAME',
-        )} <info@${config.get<string>('MAILGUN_DOMAIN')}>`,
-        subject: `${config.get<string>('CLIENT_HOST_NAME')}-驗證信箱連結`,
-        html: `
-        <html>
-        <h1>點擊連結驗證信箱</h1>
-           <a href="${link}">${link}</a>
-       </html>
-        `,
-      };
-      // 發送信件
-      await MailgunService.sendEmail({
-        email: registerBody.email,
-        hashData,
-        details,
-      });
-
-      res.status(httpStatus.CREATED).send();
+      const result = await UserService.register(req.body);
+      res.status(result.statusCode).send(result.send);
     } catch (err) {
       next(err);
     }
@@ -227,7 +126,10 @@ class UserController {
 
     try {
       const user = await UserService.getUserByEmail({ ...loginBody });
-      if (!user || !(await bcrypt.compare(loginBody.password, user.password))) {
+      if (
+        !user ||
+        !(await bcrypt.compare(loginBody.password, user.password as string))
+      ) {
         res.status(httpStatus.UNAUTHORIZED).send({
           message: 'Invalid email or password.',
         });
@@ -235,29 +137,8 @@ class UserController {
       }
 
       // Note: Sign (new) access token and refresh token
-      const accessToken = jwt.sign(
-        {
-          sub: {
-            id: user.id,
-          },
-        },
-        'ACCESS_TOKEN_PRIVATE_KEY',
-        {
-          expiresIn: `${accessTokenExpiresIn}m`,
-        },
-      );
-      const refreshToken = jwt.sign(
-        {
-          sub: {
-            id: user.id,
-          },
-        },
-        'REFRESH_TOKEN_PRIVATE_KEY',
-        {
-          expiresIn: `${refreshTokenExpiresIn}m`,
-        },
-      );
-
+      const accessToken = AuthService.ceateAccessToken({ userId: user.id });
+      const refreshToken = AuthService.refreshToken({ userId: user.id });
       res.cookie('logged_in', true, {
         ...accessTokenCookieOptions,
         httpOnly: false,
@@ -321,28 +202,8 @@ class UserController {
       }
 
       // Note: Sign (new) access token and refresh token
-      const accessToken = jwt.sign(
-        {
-          sub: {
-            id: user.id,
-          },
-        },
-        'ACCESS_TOKEN_PRIVATE_KEY',
-        {
-          expiresIn: `${accessTokenExpiresIn}m`,
-        },
-      );
-      const refreshToken = jwt.sign(
-        {
-          sub: {
-            id: user.id,
-          },
-        },
-        'REFRESH_TOKEN_PRIVATE_KEY',
-        {
-          expiresIn: `${refreshTokenExpiresIn}m`,
-        },
-      );
+      const accessToken = AuthService.ceateAccessToken({ userId: user.id });
+      const refreshToken = AuthService.refreshToken({ userId: user.id });
 
       res.cookie('logged_in', true, {
         ...accessTokenCookieOptions,
@@ -416,7 +277,7 @@ class UserController {
   ): Promise<void> {
     try {
       const { id } = req.userdata;
-      const records = await BonusPointService.getUserBonusPointRecords( id );
+      const records = await BonusPointService.getUserBonusPointRecords(id);
       if (records) {
         res.status(httpStatus.OK).json({ data: records });
       } else {

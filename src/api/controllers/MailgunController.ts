@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
 import MailgunService from '../services/MailgunService';
-import UserService from '../services/UserService';
+import UserService from '../services/userService/index';
 import config from 'config';
 
 class MailgunController {

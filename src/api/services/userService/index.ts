@@ -1,54 +1,26 @@
-import prisma from '../../database/client/prisma';
+import prisma from '../../../database/client/prisma';
+import { ValidationError } from 'yup';
 import { User, UserActivation } from '@prisma/client';
-import { Pagination } from '../../utils/helper/pagination';
+import { Pagination } from '../../../utils/helper/pagination';
+import config from 'config';
+import httpStatus from 'http-status';
 import bcrypt from 'bcrypt';
+import BonusPointService from '../BonusPointService';
+import UserActivityService from '../UserActivityService';
+import MailgunService from '../MailgunService';
 
-interface CreateUserInput {
-  email: string;
-  password: string;
-  nickname?: string;
-  cellphone: string;
-  telephone?: string;
-  defaultReward?: number;
-  addressOne: string;
-  addressTwo?: string;
-  addressThree?: string;
-}
+import {
+  IUserService,
+  CreateUserInput,
+  UpdateUserInfoInput,
+  RegisterBody,
+  SocialMediaRegisterBody,
+  registerSchema,
+  socialMediaRegisterSchema,
+  MemberLevel,
+} from './interface';
 
-interface UpdateUserInfoInput {
-  id: string;
-  email: string;
-  nickname?: string;
-  cellphone: string;
-  telephone?: string;
-  addressOne: string;
-  addressTwo?: string;
-  addressThree?: string;
-}
-
-export type MemberLevel = 'NORMAL' | 'VIP' | 'SVIP';
-
-interface IUserService {
-  getUserByRecommendCode(data: { recommendCode: string }): Promise<User | null>;
-  getUserByEmail(data: { email: string }): Promise<User | null>;
-  getUserByCellphone(data: { cellphone: string }): Promise<User | null>;
-  getUserByTaxIDNumber(data: { taxIDNumber: string }): Promise<User | null>;
-  getUserById(data: { id: string }): Promise<User | null>;
-  getUserProfileById(data: {
-    id: string;
-  }): Promise<(User & { activation: UserActivation | null }) | null>;
-  getUsers(data: {
-    pagination: Pagination;
-  }): Promise<(User & { activation: UserActivation | null })[]>;
-  recommendByUser(data: {
-    id: string;
-    recommendInfo: { code: string };
-  }): Promise<boolean>;
-  createUser(data: CreateUserInput): Promise<User>;
-  updateUser(data: UpdateUserInfoInput): Promise<User | null>;
-  getUserMemberLevel(data: { activation: UserActivation }): MemberLevel;
-  incrementUserCredit(data: { credit: number }): Promise<void>;
-}
+// export type MemberLevel = 'NORMAL' | 'VIP' | 'SVIP';
 
 class UserService implements IUserService {
   static generateRecommendCode(): string {
@@ -183,7 +155,7 @@ class UserService implements IUserService {
     const user = await prisma.user.create({
       data: {
         email: data.email,
-        password: data.password,
+        password: data.password ?? null,
         nickname: data.nickname,
         cellphone: data.cellphone,
         telephone: data.telephone,
@@ -291,6 +263,195 @@ class UserService implements IUserService {
         password: hashedPassword,
       },
     });
+  }
+
+  /**
+   * 註冊三方使用者
+   */
+  async registerBySocialMedia(
+    data: SocialMediaRegisterBody,
+  ): Promise<{ statusCode: number; send: any } | any> {
+    /**
+     * 表單驗證
+     */
+    let registerBody: SocialMediaRegisterBody;
+    try {
+      // Note: Check request body is valid
+      registerBody = await socialMediaRegisterSchema.validate(data);
+    } catch (err) {
+      console.log(err);
+      return {
+        statusCode: httpStatus.BAD_REQUEST,
+        send: (err as ValidationError).message,
+      };
+    }
+    /** 表單驗證 end */
+
+    try {
+      // Note: Check email or cellphone is used
+      if (await this.getUserByEmail({ ...registerBody })) {
+        return {
+          statusCode: httpStatus.CONFLICT,
+          send: {
+            message: 'Email is already used.',
+          },
+        };
+      }
+      // Note: Auto-gen a `Salt` and hash password
+
+      // Note: Create user
+      const user = await this.createUser({
+        ...registerBody,
+      });
+
+      // Note: 推薦帳號，使用綁定VIP推薦人
+      if (registerBody.recommendedAccount) {
+        await UserActivityService.activateUserActivity({
+          userId: user.id,
+          kind: 'VIP',
+          code: registerBody.recommendedAccount,
+        });
+      }
+
+      // Send register bonus points
+      await BonusPointService.gainFromRegisterMembership(user.id);
+
+      // 生成加密 email 值
+      const hashData = await MailgunService.encodeEmail({
+        email: registerBody.email,
+      });
+
+      // api 網址
+      const host = config.get<string>('HOST');
+      // api port
+      const apiPort = config.get<string>('API_PORT');
+      // 信箱連結
+      const link = `${host}:${apiPort}/api/v1/mail/validation-email?email=${hashData}`;
+      // 信件內容
+      const details = {
+        from: `${config.get<string>(
+          'CLIENT_HOST_NAME',
+        )} <info@${config.get<string>('MAILGUN_DOMAIN')}>`,
+        subject: `${config.get<string>('CLIENT_HOST_NAME')}-驗證信箱連結`,
+        html: `
+          <html>
+          <h1>點擊連結驗證信箱</h1>
+             <a href="${link}">${link}</a>
+         </html>
+          `,
+      };
+      // 發送信件
+      await MailgunService.sendEmail({
+        email: registerBody.email,
+        hashData,
+        details,
+      });
+      return {
+        statusCode: httpStatus.CREATED,
+        send: { message: 'Register successful.' },
+      };
+    } catch (err) {
+      console.log(err);
+      throw err;
+    }
+  }
+  /**
+   * 註冊使用者
+   */
+  async register(
+    data: RegisterBody,
+  ): Promise<{ statusCode: number; send: any } | any> {
+    /**
+     * 表單驗證
+     */
+    let registerBody: RegisterBody;
+    try {
+      // Note: Check request body is valid
+      registerBody = await registerSchema.validate(data);
+    } catch (err) {
+      return {
+        statusCode: httpStatus.BAD_REQUEST,
+        send: (err as ValidationError).message,
+      };
+    }
+    /** 表單驗證 end */
+
+    try {
+      // Note: Check email or cellphone is used
+      if (await this.getUserByEmail({ ...registerBody })) {
+        return {
+          statusCode: httpStatus.CONFLICT,
+          send: {
+            message: 'Email is already used.',
+          },
+        };
+      }
+      if (await this.getUserByCellphone({ ...registerBody })) {
+        return {
+          statusCode: httpStatus.CONFLICT,
+          send: { message: 'Cellphone is already used.' },
+        };
+      }
+
+      // Note: Auto-gen a `Salt` and hash password
+
+      const hashedPassword = await bcrypt.hash(registerBody.password, 10);
+      // Note: Create user
+      const user = await this.createUser({
+        ...registerBody,
+        password: hashedPassword,
+      });
+
+      // Note: 推薦帳號，使用綁定VIP推薦人
+      if (registerBody.recommendedAccount) {
+        await UserActivityService.activateUserActivity({
+          userId: user.id,
+          kind: 'VIP',
+          code: registerBody.recommendedAccount,
+        });
+      }
+
+      // Send register bonus points
+      await BonusPointService.gainFromRegisterMembership(user.id);
+
+      // 生成加密 email 值
+      const hashData = await MailgunService.encodeEmail({
+        email: registerBody.email,
+      });
+
+      // api 網址
+      const host = config.get<string>('HOST');
+      // api port
+      const apiPort = config.get<string>('API_PORT');
+      // 信箱連結
+      const link = `${host}:${apiPort}/api/v1/mail/validation-email?email=${hashData}`;
+      // 信件內容
+      const details = {
+        from: `${config.get<string>(
+          'CLIENT_HOST_NAME',
+        )} <info@${config.get<string>('MAILGUN_DOMAIN')}>`,
+        subject: `${config.get<string>('CLIENT_HOST_NAME')}-驗證信箱連結`,
+        html: `
+          <html>
+          <h1>點擊連結驗證信箱</h1>
+             <a href="${link}">${link}</a>
+         </html>
+          `,
+      };
+      // 發送信件
+      await MailgunService.sendEmail({
+        email: registerBody.email,
+        hashData,
+        details,
+      });
+      return {
+        statusCode: httpStatus.CREATED,
+        send: { message: 'Register successful.' },
+      };
+    } catch (err) {
+      console.log(err);
+      throw err;
+    }
   }
 }
 
