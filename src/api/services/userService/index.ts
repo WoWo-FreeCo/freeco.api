@@ -14,7 +14,9 @@ import {
   CreateUserInput,
   UpdateUserInfoInput,
   RegisterBody,
+  SocialMediaRegisterBody,
   registerSchema,
+  socialMediaRegisterSchema,
   MemberLevel,
 } from './interface';
 
@@ -153,7 +155,7 @@ class UserService implements IUserService {
     const user = await prisma.user.create({
       data: {
         email: data.email,
-        password: data.password,
+        password: data.password ?? null,
         nickname: data.nickname,
         cellphone: data.cellphone,
         telephone: data.telephone,
@@ -264,19 +266,20 @@ class UserService implements IUserService {
   }
 
   /**
-   * 註冊使用者
+   * 註冊三方使用者
    */
-  async register(
-    data: RegisterBody,
+  async registerBySocialMedia(
+    data: SocialMediaRegisterBody,
   ): Promise<{ statusCode: number; send: any } | any> {
     /**
      * 表單驗證
      */
-    let registerBody: RegisterBody;
+    let registerBody: SocialMediaRegisterBody;
     try {
       // Note: Check request body is valid
-      registerBody = await registerSchema.validate(data);
+      registerBody = await socialMediaRegisterSchema.validate(data);
     } catch (err) {
+      console.log(err);
       return {
         statusCode: httpStatus.BAD_REQUEST,
         send: (err as ValidationError).message,
@@ -294,28 +297,12 @@ class UserService implements IUserService {
           },
         };
       }
-      if (await this.getUserByCellphone({ ...registerBody })) {
-        return {
-          statusCode: httpStatus.CONFLICT,
-          send: { message: 'Cellphone is already used.' },
-        };
-      }
-
-      let user: User;
       // Note: Auto-gen a `Salt` and hash password
-      if (registerBody.password) {
-        const hashedPassword = await bcrypt.hash(registerBody.password, 10);
-        // Note: Create user
-        user = await this.createUser({
-          ...registerBody,
-          password: hashedPassword,
-        });
-      } else {
-        // Note: Create user
-        user = await this.createUser({
-          ...registerBody,
-        });
-      }
+
+      // Note: Create user
+      const user = await this.createUser({
+        ...registerBody,
+      });
 
       // Note: 推薦帳號，使用綁定VIP推薦人
       if (registerBody.recommendedAccount) {
@@ -364,7 +351,106 @@ class UserService implements IUserService {
         send: { message: 'Register successful.' },
       };
     } catch (err) {
-      return err;
+      console.log(err);
+      throw err;
+    }
+  }
+  /**
+   * 註冊使用者
+   */
+  async register(
+    data: RegisterBody,
+  ): Promise<{ statusCode: number; send: any } | any> {
+    /**
+     * 表單驗證
+     */
+    let registerBody: RegisterBody;
+    try {
+      // Note: Check request body is valid
+      registerBody = await registerSchema.validate(data);
+    } catch (err) {
+      return {
+        statusCode: httpStatus.BAD_REQUEST,
+        send: (err as ValidationError).message,
+      };
+    }
+    /** 表單驗證 end */
+
+    try {
+      // Note: Check email or cellphone is used
+      if (await this.getUserByEmail({ ...registerBody })) {
+        return {
+          statusCode: httpStatus.CONFLICT,
+          send: {
+            message: 'Email is already used.',
+          },
+        };
+      }
+      if (await this.getUserByCellphone({ ...registerBody })) {
+        return {
+          statusCode: httpStatus.CONFLICT,
+          send: { message: 'Cellphone is already used.' },
+        };
+      }
+
+      // Note: Auto-gen a `Salt` and hash password
+
+      const hashedPassword = await bcrypt.hash(registerBody.password, 10);
+      // Note: Create user
+      const user = await this.createUser({
+        ...registerBody,
+        password: hashedPassword,
+      });
+
+      // Note: 推薦帳號，使用綁定VIP推薦人
+      if (registerBody.recommendedAccount) {
+        await UserActivityService.activateUserActivity({
+          userId: user.id,
+          kind: 'VIP',
+          code: registerBody.recommendedAccount,
+        });
+      }
+
+      // Send register bonus points
+      await BonusPointService.gainFromRegisterMembership(user.id);
+
+      // 生成加密 email 值
+      const hashData = await MailgunService.encodeEmail({
+        email: registerBody.email,
+      });
+
+      // api 網址
+      const host = config.get<string>('HOST');
+      // api port
+      const apiPort = config.get<string>('API_PORT');
+      // 信箱連結
+      const link = `${host}:${apiPort}/api/v1/mail/validation-email?email=${hashData}`;
+      // 信件內容
+      const details = {
+        from: `${config.get<string>(
+          'CLIENT_HOST_NAME',
+        )} <info@${config.get<string>('MAILGUN_DOMAIN')}>`,
+        subject: `${config.get<string>('CLIENT_HOST_NAME')}-驗證信箱連結`,
+        html: `
+          <html>
+          <h1>點擊連結驗證信箱</h1>
+             <a href="${link}">${link}</a>
+         </html>
+          `,
+      };
+      // 發送信件
+      await MailgunService.sendEmail({
+        email: registerBody.email,
+        hashData,
+        details,
+      });
+      return {
+        statusCode: httpStatus.CREATED,
+        send: { message: 'Register successful.' },
+      };
+    } catch (err) {
+      console.log(err);
+      throw err;
     }
   }
 }

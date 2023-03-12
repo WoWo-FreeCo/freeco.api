@@ -3,16 +3,12 @@ import { GoogleUser, User } from '@prisma/client';
 import UserService from '../userService/index';
 import { IGoogleUserInfo } from './interface';
 import { OAuth2Client } from 'google-auth-library';
-import moment from 'moment/moment';
 import config from 'config';
 import httpStatus from 'http-status';
 
 export class GoogleUserService {
-  public testA: string;
   public oauthClient: any;
-  constructor(private a) {
-    this.testA = this.a;
-
+  constructor() {
     this.oauthClient = new OAuth2Client(
       config.get('GOOGLE_CLIENT_ID'),
       config.get('GOOGLE_SECRET'),
@@ -66,44 +62,103 @@ export class GoogleUserService {
       accessToken: data.accessToken,
     });
     // 驗證失敗不往下執行
-    if (oauthInfo.success) {
-      return {
+    if (!oauthInfo.success) {
+      throw {
         statusCode: httpStatus.BAD_REQUEST,
-        send: { message: 'Google Authenticate Fail' },
+        send: { message: 'Google Authenticate Fail.' },
       };
     }
     // 取得 google users 表資料
-    const googleUser = await prisma.googleUser.findFirst({
-      where: {
-        email: oauthInfo.email,
-      },
-    });
+    const googleUser =
+      oauthInfo.payload.email !== undefined
+        ? await prisma.googleUser.findFirst({
+            where: {
+              email: oauthInfo.payload.email,
+            },
+          })
+        : null;
     // 取得 user 表資料
-    const user = await UserService.getUserByEmail({ email: oauthInfo.email });
+    const user = await UserService.getUserByEmail({
+      email: oauthInfo.payload.email,
+    });
     // 判斷有無 googleUser 與 user 資料
     if (googleUser === null && user === null) {
       // 註冊使用者
-      await UserService.register({
-        email: oauthInfo.email,
-        nickname: oauthInfo.nam,
-        cellphone: '',
-        addressOne: '',
-      });
+      try {
+        // Note: Create user
+        // await UserService.createUser({
+        //   email: oauthInfo.payload.email,
+        //   nickname: oauthInfo.payload.name,
+        //   cellphone: '',
+        //   addressOne: '',
+        // });
+        await UserService.registerBySocialMedia({
+          email: oauthInfo.payload.email,
+          nickname: oauthInfo.payload.name,
+          cellphone: '',
+          addressOne: '',
+        });
+      } catch (err) {
+        throw {
+          statusCode: httpStatus.BAD_REQUEST,
+          send: { message: 'Create User Fail.' },
+        };
+      }
       // 透過信箱取得使用者資料
-      const user = await UserService.getUserByEmail({ email: oauthInfo.email });
-      // 新增 google user 綁定
-      await this.create({ ...oauthInfo }, user!.id);
+      const user = await UserService.getUserByEmail({
+        email: oauthInfo.payload.email,
+      });
+      if (user === null) {
+        throw {
+          statusCode: httpStatus.BAD_REQUEST,
+          send: { message: 'User not found.' },
+        };
+      }
+      try {
+        // 新增 google user 綁定
+        await this.create({ ...oauthInfo.payload }, user!.id);
+      } catch (err) {
+        throw {
+          statusCode: httpStatus.BAD_REQUEST,
+          send: { message: 'Create Google User Fail.' },
+        };
+      }
     } else if (
+      /* 判斷有 googleUser 和 user 資料 但 userId 為空的情況 */
       googleUser !== null &&
-      googleUser.userId === null &&
-      user !== null
+      user !== null &&
+      googleUser.userId === null
     ) {
       // 更新 google user 綁定
-      await this.update({ ...oauthInfo }, user.id);
+      try {
+        await this.update({ ...oauthInfo.payload }, user.id);
+      } catch (err) {
+        throw {
+          statusCode: httpStatus.BAD_REQUEST,
+          send: { message: 'Update Google User Fail.' },
+        };
+      }
+    } else if (googleUser === null && user !== null) {
+      try {
+        // 新增 google user 綁定
+        await this.create({ ...oauthInfo.payload }, user!.id);
+      } catch (err) {
+        throw {
+          statusCode: httpStatus.BAD_REQUEST,
+          send: { message: 'Create Google User Fail.' },
+        };
+      }
     }
     if (googleUser !== null && user !== null) {
-      // 更新 google user 綁定
-      await this.update({ ...oauthInfo }, user.id);
+      try {
+        // 更新 google user 綁定
+        await this.update({ ...oauthInfo.payload }, user.id);
+      } catch (err) {
+        throw {
+          statusCode: httpStatus.BAD_REQUEST,
+          send: { message: 'Update Google User Fail.' },
+        };
+      }
     }
   }
 
@@ -114,18 +169,19 @@ export class GoogleUserService {
     try {
       await prisma.googleUser.create({
         data: {
-          accountId: data.id,
+          accountId: data.sub,
           userId: userId,
           email: data.email,
           family_name: data.family_name,
           given_name: data.given_name,
           locale: data.locale,
           picture: data.picture,
-          last_login_at: moment().format('YYYY-MM-DD HH:mm:ss'),
+          last_login_at: new Date(),
         },
       });
     } catch (err) {
-      return err;
+      console.log(err);
+      throw err;
     }
   }
   /**
@@ -136,18 +192,19 @@ export class GoogleUserService {
       await prisma.googleUser.update({
         where: { email: data.email },
         data: {
-          accountId: data.id,
+          accountId: data.sub,
           userId: userId,
           email: data.email,
           family_name: data.family_name,
           given_name: data.given_name,
           locale: data.locale,
           picture: data.picture,
-          last_login_at: moment().format('YYYY-MM-DD HH:mm:ss'),
+          last_login_at: new Date(),
         },
       });
     } catch (err) {
-      return err;
+      console.log(err);
+      throw err;
     }
   }
 }

@@ -6,7 +6,7 @@ export type MemberLevel = 'NORMAL' | 'VIP' | 'SVIP';
 
 export interface RegisterBody {
   email: string;
-  password?: string;
+  password: string;
   nickname?: string;
   cellphone: string;
   telephone?: string;
@@ -29,14 +29,40 @@ export const registerSchema: ObjectSchema<RegisterBody> = object({
   recommendedAccount: string().optional(),
 });
 
+export interface SocialMediaRegisterBody {
+  email: string;
+  password?: string | null;
+  nickname?: string;
+  cellphone?: string | null;
+  telephone?: string;
+  addressOne?: string | null;
+  addressTwo?: string;
+  addressThree?: string;
+  // Note: 推薦帳號
+  recommendedAccount?: string;
+}
+
+export const socialMediaRegisterSchema: ObjectSchema<SocialMediaRegisterBody> =
+  object({
+    email: string().email().required(),
+    password: string().optional(),
+    nickname: string().optional(),
+    cellphone: string().optional(),
+    telephone: string().optional(),
+    addressOne: string().optional(),
+    addressTwo: string().optional(),
+    addressThree: string().optional(),
+    recommendedAccount: string().optional(),
+  });
+
 export interface CreateUserInput {
   email: string;
-  password?: string;
+  password?: string | null;
   nickname?: string;
-  cellphone: string;
+  cellphone?: string | null;
   telephone?: string;
   defaultReward?: number;
-  addressOne: string;
+  addressOne?: string | null;
   addressTwo?: string;
   addressThree?: string;
 }

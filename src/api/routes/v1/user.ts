@@ -75,6 +75,6 @@ userRoute
   .post('/forgot-password', UserController.forgotPassword)
   // 重置密碼
   .post('/reset-password', UserController.resetPassword)
+  // google 登入綁定
   .post('/google-login', GoogleUserController.login);
-//   .get('/google-user', GoogleUserController.testGetUser);
 export default userRoute;

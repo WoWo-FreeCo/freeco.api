@@ -5,8 +5,15 @@ import { LoginBody, loginSchema } from './GoogleUserControllerRequest';
 import { ValidationError } from 'yup';
 import { accessTokenCookieOptions } from '../../services/authService/AuthConfig';
 import AuthService from '../../services/authService/index';
-const googleUserService = new GoogleUserService('abc');
+const googleUserService = new GoogleUserService();
 class GoogleUserController {
+  /**
+   * 登入
+   * @param req
+   * @param res
+   * @param next
+   * @returns
+   */
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     let loginBody: LoginBody;
     try {
@@ -32,6 +39,7 @@ class GoogleUserController {
       googleUser = await googleUserService.getUserByAccountId({
         accountId: googleUser.id,
       });
+
       // 判斷有資料時 回傳 jwt token
       if (googleUser !== null) {
         // 將登入資訊寫入 cookie
@@ -58,24 +66,10 @@ class GoogleUserController {
       } else {
         res.status(httpStatus.NOT_FOUND).send({ message: 'User not found.' });
       }
-    } catch (err) {
-      next(err);
-    }
-  }
-
-  async testGetUser(
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> {
-    try {
-      // 取得 google user 資料
-
-      const googleUser = await googleUserService.getUserByAccountId({
-        accountId: req.query.accountId as string,
-      });
-      res.status(httpStatus.OK).send(googleUser);
-    } catch (err) {
+    } catch (err: any) {
+      if (err.statusCode !== undefined) {
+        res.status(err.statusCode).send(err.send);
+      }
       next(err);
     }
   }

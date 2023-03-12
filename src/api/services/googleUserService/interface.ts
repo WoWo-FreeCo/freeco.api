@@ -25,7 +25,7 @@ export interface IGoogleUserInfo {
   /**
    * The obfuscated ID of the user.
    */
-  id: string;
+  id?: string;
   /**
    * URL of the profile page.
    */
@@ -50,5 +50,5 @@ export interface IGoogleUserInfo {
   /**
    * google id
    */
-  sub?: string | number;
+  sub: string;
 }
