@@ -86,16 +86,9 @@ export class GoogleUserService {
       // 註冊使用者
       try {
         // Note: Create user
-        // await UserService.createUser({
-        //   email: oauthInfo.payload.email,
-        //   nickname: oauthInfo.payload.name,
-        //   cellphone: '',
-        //   addressOne: '',
-        // });
         await UserService.registerBySocialMedia({
           email: oauthInfo.payload.email,
           nickname: oauthInfo.payload.name,
-          cellphone: '',
           addressOne: '',
         });
       } catch (err) {
