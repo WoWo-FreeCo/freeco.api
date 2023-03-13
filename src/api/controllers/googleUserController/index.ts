@@ -37,7 +37,7 @@ class GoogleUserController {
       await googleUserService.createOrUpdate(loginBody);
       // 取得 google user 資料
       googleUser = await googleUserService.getUserByAccountId({
-        accountId: googleUser.id,
+        accountId: googleUser.payload.sub,
       });
 
       // 判斷有資料時 回傳 jwt token
