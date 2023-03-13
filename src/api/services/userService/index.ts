@@ -205,7 +205,10 @@ class UserService implements IUserService {
       count++;
     }
     // Note: SVIP code completed or (綁定條件三選二）
-    if (data.activation.SVIPActivated || count >= 2) {
+    if (
+      data.activation.VIPActivated &&
+      (data.activation.SVIPActivated || count >= 2)
+    ) {
       memberLevel = 'SVIP';
       // Note: VIP code completed and (綁定條件三選一）
     } else if (data.activation.VIPActivated && count >= 1) {
