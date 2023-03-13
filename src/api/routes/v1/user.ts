@@ -59,7 +59,7 @@ userRoute
   .use(
     '/shopping-session',
     AuthMiddleware.authenticate('user'),
-    UserActivityController.activate,
+    userShoppingSessionRouter,
   )
   .post(
     '/activity/daily-check/:index',
