@@ -238,6 +238,20 @@ class ShoppingSessionController {
         return;
       }
 
+      const isValidCreate =
+        await ShoppingCartService.checkCartItemCreateOrUpdateValid({
+          shoppingSessionId,
+          productId: createCartItemBody.productId,
+          quantity: createCartItemBody.quantity,
+        });
+
+      if (!isValidCreate) {
+        res
+          .status(httpStatus.BAD_REQUEST)
+          .json({ message: 'Create or update operation is invalid.' });
+        return;
+      }
+
       const cartItem =
         await ShoppingCartService.createCartItemByShoppingSession({
           shoppingSessionId,
@@ -292,6 +306,20 @@ class ShoppingSessionController {
       });
       if (!any) {
         res.status(httpStatus.NOT_FOUND).json({ message: 'Id is invalid.' });
+        return;
+      }
+      const isValidUpdate =
+        await ShoppingCartService.checkCartItemCreateOrUpdateValid({
+          shoppingSessionId,
+          id,
+          productId: updateCartItemBody.productId,
+          quantity: updateCartItemBody.quantity,
+        });
+
+      if (!isValidUpdate) {
+        res
+          .status(httpStatus.BAD_REQUEST)
+          .json({ message: 'Create or update operation is invalid.' });
         return;
       }
 
