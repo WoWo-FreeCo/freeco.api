@@ -54,6 +54,9 @@ interface IShoppingCartService {
     shoppingSessionId: number;
     id: number;
   }): Promise<{ id: number } | null>;
+  checkCartItemCreateOrUpdateValid(
+    data: CreateCartItemInput | UpdateCartItemInput,
+  ): Promise<boolean>;
 }
 
 class ShoppingCartService implements IShoppingCartService {
@@ -155,10 +158,6 @@ class ShoppingCartService implements IShoppingCartService {
     data: CreateCartItemInput,
   ): Promise<CartItem | null> {
     try {
-      const valid = await this.checkCartItemCreateOrUpdateValid(data);
-      if (!valid) {
-        return null;
-      }
       return await prisma.cartItem.create({
         data: {
           shoppingSessionId: data.shoppingSessionId,
@@ -175,10 +174,6 @@ class ShoppingCartService implements IShoppingCartService {
     data: UpdateCartItemInput,
   ): Promise<CartItem | null> {
     try {
-      const valid = await this.checkCartItemCreateOrUpdateValid(data);
-      if (!valid) {
-        return null;
-      }
       return await prisma.cartItem.update({
         where: {
           id: data.id,
@@ -209,7 +204,7 @@ class ShoppingCartService implements IShoppingCartService {
     }
   }
 
-  private async checkCartItemCreateOrUpdateValid(
+  async checkCartItemCreateOrUpdateValid(
     data: CreateCartItemInput | UpdateCartItemInput,
   ): Promise<boolean> {
     const product = await prisma.product.findFirst({
