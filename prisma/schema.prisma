@@ -112,20 +112,24 @@ model FacebookUser {
     @@index([asid, email])
 }
 
-enum BonusPointActivityType {
-  // 會員註冊
-  REGISTER
-  // 會員升級
-  UPGRADE
-  // 消費回饋
-  REWARD
-  // 使用紅利
-  REDEEM
-}
+// enum BonusPointActivityType {
+//   // 會員註冊
+//   REGISTER
+//   // 會員升級VIP
+//   UPG_VIP
+//   // 會員升級SVIP
+//   UPG_SVIP
+//   // 消費回饋
+//   REWARD
+//   // 使用紅利
+//   REDEEM
+// }
 
 model BonusPoint {
   id           Int                    @id @default(autoincrement())
-  activityType BonusPointActivityType
+  // activityType BonusPointActivityType
+  rule         BonusPointRule?        @relation(fields: [ruleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ruleId       Int?
   user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   userId       String                 @db.VarChar(36)
   points       Int
@@ -140,6 +144,7 @@ model BonusPointRule {
   rule      Int
   createdAt DateTime @default(now()) @db.Timestamp(0)
   updatedAt DateTime @updatedAt @db.Timestamp(0)
+  bonusPointRecords  BonusPoint[]
 }
 
 enum OrderStatus {

@@ -1,6 +1,5 @@
 import {
   BonusPoint,
-  BonusPointActivityType,
   BonusPointRule,
 } from '@prisma/client';
 import prisma from '../../database/client/prisma/index';
@@ -54,6 +53,13 @@ class BonusPointService implements IBonusPointService {
       where: {
         userId: userId,
       },
+      include: {
+        rule: {
+          select: {
+            name: true
+          }
+        }
+      },
     });
   }
 
@@ -83,7 +89,8 @@ class BonusPointService implements IBonusPointService {
       .reduce((sum, price) => sum + price);
 
     this.createBonusPointRecord(
-      BonusPointActivityType.REWARD,
+      // BonusPointActivityType.REWARD,
+      BonusPointCashbackRule.id,
       order.user.recommendedBy,
       (orderPriceWithOutDeliveryFee * BonusPointCashbackRule.rule) / 100,
     );
@@ -98,7 +105,8 @@ class BonusPointService implements IBonusPointService {
 
     if (registerBonusPointRule) {
       this.createBonusPointRecord(
-        BonusPointActivityType.REGISTER,
+        // BonusPointActivityType.REGISTER,
+        registerBonusPointRule.id,
         userId,
         registerBonusPointRule.rule,
       );
@@ -127,7 +135,8 @@ class BonusPointService implements IBonusPointService {
 
     if (upgradeBonusPointRule) {
       this.createBonusPointRecord(
-        BonusPointActivityType.UPGRADE,
+        // BonusPointActivityType.UPGRADE,
+        upgradeBonusPointRule.id,
         userId,
         upgradeBonusPointRule.rule,
       );
@@ -136,7 +145,8 @@ class BonusPointService implements IBonusPointService {
 
   async redeem(userId: string, points: number): Promise<BonusPoint> {
     return this.createBonusPointRecord(
-      BonusPointActivityType.REDEEM,
+      // BonusPointActivityType.REDEEM,
+      0,
       userId,
       0 - points,
     );
@@ -150,14 +160,16 @@ class BonusPointService implements IBonusPointService {
   }
 
   private async createBonusPointRecord(
-    activityType: BonusPointActivityType,
+    // activityType: BonusPointActivityType,
+    ruleId: number,
     userId: string,
     points: number,
   ): Promise<BonusPoint> {
     await this.updateUserRewardCredit(userId, points);
     return await prisma.bonusPoint.create({
       data: {
-        activityType: activityType,
+        // activityType: activityType,
+        ruleId: ruleId,
         userId: userId,
         points: points,
         createdAt: new Date(),
