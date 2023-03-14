@@ -146,7 +146,7 @@ class BonusPointService implements IBonusPointService {
   async redeem(userId: string, points: number): Promise<BonusPoint> {
     return this.createBonusPointRecord(
       // BonusPointActivityType.REDEEM,
-      0,
+      5,
       userId,
       0 - points,
     );
