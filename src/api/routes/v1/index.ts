@@ -10,8 +10,10 @@ import checkContentRoute from './checkContent';
 import paymentRoute from './payment';
 import orderRoute from './order';
 import webPageRoute from './webPage';
-// 發郵件路由
-import mailgunRoute from './mailgun';
+// mailgun 發郵件路由
+// import mailgunRoute from './mailgun';
+// sendinblue 發郵件路由
+import sendinblueRoute from './sendinblue';
 
 const router: Router = Router();
 
@@ -26,5 +28,5 @@ router.use('/check-content', checkContentRoute);
 router.use('/payment', paymentRoute);
 router.use('/order', orderRoute);
 router.use('/web-page', webPageRoute);
-router.use('/mail', mailgunRoute);
+router.use('/mail', sendinblueRoute);
 export default router;

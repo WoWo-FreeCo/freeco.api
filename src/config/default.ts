@@ -45,4 +45,8 @@ export default {
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   // google secret
   GOOGLE_SECRET: process.env.GOOGLE_CLIENT_ID,
+  // mail domain (寄信網址)
+  MAIL_DOMAIN: process.env.MAIL_DOMAIN,
+  // sendinblue key
+  SENDINBLUE_KEY: process.env.SENDINBLUE_KEY,
 };

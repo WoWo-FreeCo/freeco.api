@@ -7,7 +7,8 @@ import httpStatus from 'http-status';
 import bcrypt from 'bcrypt';
 import BonusPointService from '../BonusPointService';
 import UserActivityService from '../UserActivityService';
-import MailgunService from '../MailgunService';
+import SendinBlueService from '../SendinblueService';
+import { encodeEmail } from '../../utils/MailHelper';
 
 import {
   IUserService,
@@ -320,7 +321,7 @@ class UserService implements IUserService {
       await BonusPointService.gainFromRegisterMembership(user.id);
 
       // 生成加密 email 值
-      const hashData = await MailgunService.encodeEmail({
+      const hashData = await encodeEmail({
         email: registerBody.email,
       });
 
@@ -332,19 +333,16 @@ class UserService implements IUserService {
       const link = `${host}:${apiPort}/api/v1/mail/validation-email?email=${hashData}`;
       // 信件內容
       const details = {
-        from: `${config.get<string>(
-          'CLIENT_HOST_NAME',
-        )} <info@${config.get<string>('MAILGUN_DOMAIN')}>`,
         subject: `${config.get<string>('CLIENT_HOST_NAME')}-驗證信箱連結`,
         html: `
           <html>
           <h1>點擊連結驗證信箱</h1>
              <a href="${link}">${link}</a>
-         </html>
+          </html>
           `,
       };
       // 發送信件
-      await MailgunService.sendEmail({
+      await SendinBlueService.sendEmail({
         email: registerBody.email,
         hashData,
         details,
@@ -354,8 +352,7 @@ class UserService implements IUserService {
         send: { message: 'Register successful.' },
       };
     } catch (err) {
-      console.log(err);
-      throw err;
+      return err;
     }
   }
   /**
@@ -418,7 +415,7 @@ class UserService implements IUserService {
       await BonusPointService.gainFromRegisterMembership(user.id);
 
       // 生成加密 email 值
-      const hashData = await MailgunService.encodeEmail({
+      const hashData = await encodeEmail({
         email: registerBody.email,
       });
 
@@ -430,19 +427,16 @@ class UserService implements IUserService {
       const link = `${host}:${apiPort}/api/v1/mail/validation-email?email=${hashData}`;
       // 信件內容
       const details = {
-        from: `${config.get<string>(
-          'CLIENT_HOST_NAME',
-        )} <info@${config.get<string>('MAILGUN_DOMAIN')}>`,
         subject: `${config.get<string>('CLIENT_HOST_NAME')}-驗證信箱連結`,
         html: `
           <html>
           <h1>點擊連結驗證信箱</h1>
              <a href="${link}">${link}</a>
-         </html>
+          </html>
           `,
       };
       // 發送信件
-      await MailgunService.sendEmail({
+      await SendinBlueService.sendEmail({
         email: registerBody.email,
         hashData,
         details,
@@ -452,8 +446,7 @@ class UserService implements IUserService {
         send: { message: 'Register successful.' },
       };
     } catch (err) {
-      console.log(err);
-      throw err;
+      return err;
     }
   }
 }
