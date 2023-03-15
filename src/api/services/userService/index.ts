@@ -163,6 +163,9 @@ class UserService implements IUserService {
         activation: {
           create: {},
         },
+        city: data.city,
+        district: data.district,
+        zipCode: data.zipCode,
         addressOne: data.addressOne,
         addressTwo: data.addressTwo,
         addressThree: data.addressThree,
@@ -183,6 +186,9 @@ class UserService implements IUserService {
           nickname: data.nickname,
           cellphone: data.cellphone,
           telephone: data.telephone,
+          city: data.city,
+          district: data.district,
+          zipCode: data.zipCode,
           addressOne: data.addressOne,
           addressTwo: data.addressTwo,
           addressThree: data.addressThree,
@@ -374,7 +380,7 @@ class UserService implements IUserService {
     } catch (err) {
       return {
         statusCode: httpStatus.BAD_REQUEST,
-        send: (err as ValidationError).message,
+        send: (err as ValidationError).message.replace(' is a required field','為必填欄位') ,
       };
     }
     /** 表單驗證 end */
@@ -385,14 +391,14 @@ class UserService implements IUserService {
         return {
           statusCode: httpStatus.CONFLICT,
           send: {
-            message: 'Email is already used.',
+            message: '此Email已被使用',
           },
         };
       }
       if (await this.getUserByCellphone({ ...registerBody })) {
         return {
           statusCode: httpStatus.CONFLICT,
-          send: { message: 'Cellphone is already used.' },
+          send: { message: '此Cellphone已被使用' },
         };
       }
 
@@ -449,7 +455,7 @@ class UserService implements IUserService {
       });
       return {
         statusCode: httpStatus.CREATED,
-        send: { message: 'Register successful.' },
+        send: { message: '註冊成功' },
       };
     } catch (err) {
       console.log(err);

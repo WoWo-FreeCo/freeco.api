@@ -10,6 +10,9 @@ export interface RegisterBody {
   nickname?: string;
   cellphone: string;
   telephone?: string;
+  city: string;
+  district: string;
+  zipCode: string;
   addressOne: string;
   addressTwo?: string;
   addressThree?: string;
@@ -23,6 +26,9 @@ export const registerSchema: ObjectSchema<RegisterBody> = object({
   nickname: string().optional(),
   cellphone: string().required(),
   telephone: string().optional(),
+  city: string().required(),
+  district: string().required(),
+  zipCode: string().required(),
   addressOne: string().required(),
   addressTwo: string().optional(),
   addressThree: string().optional(),
@@ -62,6 +68,9 @@ export interface CreateUserInput {
   cellphone?: string | null;
   telephone?: string;
   defaultReward?: number;
+  city?: string;
+  district?: string;
+  zipCode?: string;
   addressOne?: string | null;
   addressTwo?: string;
   addressThree?: string;
@@ -73,6 +82,9 @@ export interface UpdateUserInfoInput {
   nickname?: string;
   cellphone: string;
   telephone?: string;
+  city: string;
+  district: string;
+  zipCode: string;
   addressOne: string;
   addressTwo?: string;
   addressThree?: string;

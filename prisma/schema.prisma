@@ -44,6 +44,9 @@ model User {
   nickname         String?
   cellphone        String?            @unique @db.VarChar(15)
   telephone        String?           @db.VarChar(15)
+  city             String?
+  district         String?
+  zipCode          String?
   addressOne       String?
   addressTwo       String?
   addressThree     String?
