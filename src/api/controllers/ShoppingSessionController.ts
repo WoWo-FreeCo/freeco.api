@@ -172,7 +172,6 @@ class ShoppingSessionController {
         await ShoppingCartService.getShoppingSessionDetailsById({
           id,
         });
-
       if (!shoppingSessionDetail) {
         res.status(httpStatus.NOT_FOUND).json({ message: 'Id is invalid.' });
         return;
@@ -195,6 +194,7 @@ class ShoppingSessionController {
                 attribute: cartItem.product.attribute,
                 skuId: cartItem.product.skuId,
                 categoryId: cartItem.product.categoryId || null,
+                inventory: cartItem.product['inventory'] || null,
               }
             : null,
         })),
