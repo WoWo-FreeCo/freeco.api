@@ -360,6 +360,7 @@ class PaymentController {
             await OrderService.completeOrderPaymentFromWaitDelivery({
               id: orderDetail.id,
             });
+            await BonusPointService.gainFromOrderCashBack(orderDetail.id)
             // Note: 訂單已取消
           } else if (orderDetail.orderStatus === OrderStatus.CANCELLED) {
             // Note: revoke order

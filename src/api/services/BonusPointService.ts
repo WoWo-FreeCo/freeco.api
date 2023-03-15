@@ -8,6 +8,7 @@ import {
   REGISTER_BONUS_POINT_ID,
   UPGRADE_TO_SVIP_BONUS_POINT_ID,
   UPGRADE_TO_VIP_BONUS_POINT_ID,
+  DAILY_CHECK_POINT_ID,
 } from '../../utils/constant';
 import { DELIVERY_ITEM_NAME } from './PaymentService';
 
@@ -89,11 +90,26 @@ class BonusPointService implements IBonusPointService {
       .reduce((sum, price) => sum + price);
 
     this.createBonusPointRecord(
-      // BonusPointActivityType.REWARD,
       BonusPointCashbackRule.id,
       order.user.recommendedBy,
       (orderPriceWithOutDeliveryFee * BonusPointCashbackRule.rule) / 100,
     );
+  }
+
+  async gainFromDailyCheck(userId: string,points: number): Promise<void> {
+    const registerBonusPointRule = await prisma.bonusPointRule.findFirst({
+      where: {
+        id: DAILY_CHECK_POINT_ID,
+      },
+    });
+
+    if (registerBonusPointRule) {
+      this.createBonusPointRecord(
+        registerBonusPointRule.id,
+        userId,
+        points,
+      );
+    }
   }
 
   async gainFromRegisterMembership(userId: string): Promise<void> {
