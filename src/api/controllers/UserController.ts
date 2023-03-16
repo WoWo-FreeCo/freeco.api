@@ -9,8 +9,9 @@ import config from 'config';
 import { Pagination } from '../../utils/helper/pagination';
 import BonusPointService from '../services/BonusPointService';
 import userController from './UserController';
-import MailgunService from '../services/MailgunService';
 import AuthService from '../services/authService/index';
+import SendinblueService from '../services/SendinblueService';
+import { encodeEmail, decipherEmail } from '../utils/MailHelper';
 import { accessTokenCookieOptions } from '../services/authService/AuthConfig';
 
 interface UpdateUserInfoBody {
@@ -118,8 +119,12 @@ class UserController {
     try {
       const result = await UserService.register(req.body);
       res.status(result.statusCode).send(result.send);
-    } catch (err) {
-      next(err);
+    } catch (err: any) {
+      if (err.statusCode !== undefined) {
+        res.status(err.statusCode).send(err.send);
+      } else {
+        next(err);
+      }
     }
   }
 
@@ -445,15 +450,12 @@ class UserController {
     try {
       const forgotPasswordBody: ForgotPasswordBody =
         await forgotPasswordSchema.validate(req.body);
-      const hashData = await MailgunService.encodeEmail({
+      const hashData = await encodeEmail({
         email: forgotPasswordBody.email,
       });
       const host = config.get<string>('CLIENT_HOST');
       const link = `${host}/forget?email=${hashData}`;
       const details = {
-        from: `${config.get<string>(
-          'CLIENT_HOST_NAME',
-        )} <info@${config.get<string>('MAILGUN_DOMAIN')}>`,
         subject: `${config.get<string>('CLIENT_HOST_NAME')}-驗證信箱連結`,
         html: `
       <html>
@@ -462,14 +464,18 @@ class UserController {
      </html>
       `,
       };
-      await MailgunService.sendEmail({
+      await SendinblueService.sendEmail({
         email: forgotPasswordBody.email,
         hashData,
         details,
       });
       res.status(httpStatus.OK).json({ msg: '重置密碼信件發送成功' });
-    } catch (err) {
-      next(err);
+    } catch (err: any) {
+      if (err.statusCode !== undefined) {
+        res.status(err.statusCode).send(err.send);
+      } else {
+        next(err);
+      }
     }
   }
 
@@ -485,7 +491,7 @@ class UserController {
       const resetPasswordBody: ResetPasswordBody =
         await resetPasswordSchema.validate(req.body);
       // 解密 email
-      const email = await MailgunService.decipherEmail({
+      const email = await decipherEmail({
         hashValue: resetPasswordBody.email,
       });
       // 透過 email 取得使用者資料

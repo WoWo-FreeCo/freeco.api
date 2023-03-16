@@ -21,7 +21,7 @@ class MailgunService {
     const sendData = {
       from: data.details.from,
       to: data.email,
-      subject: 'wowo驗證信箱',
+      subject: data.details.subject,
       html: data.details.html,
     };
     try {
