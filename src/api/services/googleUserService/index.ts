@@ -56,6 +56,7 @@ export class GoogleUserService {
    */
   async createOrUpdate(data: {
     accessToken: string;
+    recommendedAccount?: string;
   }): Promise<{ statusCode: number; send: any } | void> {
     // 驗證 google 登入 並回傳使用者資料
     const oauthInfo = await this.authenticate({
@@ -90,6 +91,7 @@ export class GoogleUserService {
           email: oauthInfo.payload.email,
           nickname: oauthInfo.payload.name,
           addressOne: '',
+          recommendedAccount: data.recommendedAccount ?? undefined,
         });
       } catch (err) {
         throw {
