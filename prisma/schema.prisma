@@ -64,6 +64,7 @@ model User {
   type             DateTime?         @db.Timestamp(0)
   createdAt        DateTime          @default(now()) @db.Timestamp(0)
   updatedAt        DateTime          @updatedAt @db.Timestamp(0)
+  ActivityComment  ActivityComment[]
 
   @@index([cellphone])
   @@index([taxIDNumber])
@@ -129,7 +130,7 @@ model FacebookUser {
 // }
 
 model BonusPoint {
-  id           Int                    @id @default(autoincrement())
+  id        Int             @id @default(autoincrement())
   // activityType BonusPointActivityType
   rule         BonusPointRule?        @relation(fields: [ruleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   ruleId       Int?
@@ -408,4 +409,30 @@ model DeliveryFeeRule {
   rule      Int
   createdAt DateTime            @default(now()) @db.Timestamp(0)
   updatedAt DateTime            @updatedAt @db.Timestamp(0)
+}
+
+model Activity {
+  id              Int               @id @default(autoincrement())
+  name            String            @db.VarChar(255)
+  text            String            @db.LongText
+  videoUrls       Json
+  answer          String            @db.VarChar(255)
+  awardee         String            @db.VarChar(255)
+  startAt         DateTime          @db.Timestamp(0)
+  endAt           DateTime          @db.Timestamp(0)
+  createdAt       DateTime          @default(now()) @db.Timestamp(0)
+  updatedAt       DateTime          @updatedAt @db.Timestamp(0)
+  ActivityComment ActivityComment[]
+}
+
+model ActivityComment {
+  id         Int      @id @default(autoincrement())
+  activityId Int
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId     String   @db.VarChar(36)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  text       String   @db.LongText
+  createdAt  DateTime @default(now()) @db.Timestamp(0)
+
+  @@index([activityId])
 }
