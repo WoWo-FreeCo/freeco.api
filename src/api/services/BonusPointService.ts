@@ -88,23 +88,21 @@ class BonusPointService implements IBonusPointService {
       .filter((item) => item.name != DELIVERY_ITEM_NAME)
       .map((item) => item.price * item.quantity)
       .reduce((sum, price) => sum + price);
-
-    this.createBonusPointRecord(
+    await this.createBonusPointRecord(
       BonusPointCashbackRule.id,
       order.user.recommendedBy,
       (orderPriceWithOutDeliveryFee * BonusPointCashbackRule.rule) / 100,
     );
   }
 
-  async gainFromDailyCheck(userId: string,points: number): Promise<void> {
+  async gainFromDailyCheck(userId: string, points: number): Promise<void> {
     const registerBonusPointRule = await prisma.bonusPointRule.findFirst({
       where: {
         id: DAILY_CHECK_POINT_ID,
       },
     });
-
     if (registerBonusPointRule) {
-      this.createBonusPointRecord(
+      await this.createBonusPointRecord(
         registerBonusPointRule.id,
         userId,
         points,
@@ -120,8 +118,7 @@ class BonusPointService implements IBonusPointService {
     });
 
     if (registerBonusPointRule) {
-      this.createBonusPointRecord(
-        // BonusPointActivityType.REGISTER,
+      await this.createBonusPointRecord(
         registerBonusPointRule.id,
         userId,
         registerBonusPointRule.rule,
@@ -150,8 +147,7 @@ class BonusPointService implements IBonusPointService {
     }
 
     if (upgradeBonusPointRule) {
-      this.createBonusPointRecord(
-        // BonusPointActivityType.UPGRADE,
+      await this.createBonusPointRecord(
         upgradeBonusPointRule.id,
         userId,
         upgradeBonusPointRule.rule,
@@ -160,15 +156,19 @@ class BonusPointService implements IBonusPointService {
   }
 
   async redeem(userId: string, points: number): Promise<BonusPoint> {
-    return this.createBonusPointRecord(
-      // BonusPointActivityType.REDEEM,
+    return (await this.createBonusPointRecord(
       5,
       userId,
       0 - points,
-    );
+    ))
   }
 
   async cancelRedemption(id: number): Promise<void> {
+    const record = await prisma.bonusPoint.findUnique({
+      where: { id: id },
+    });
+    if (record && record.userId !== null && record.points !== null)
+      await this.updateUserRewardCredit(record.userId, 0 - record.points);
     await prisma.bonusPoint.update({
       where: { id: id },
       data: { points: 0 },
@@ -176,7 +176,6 @@ class BonusPointService implements IBonusPointService {
   }
 
   private async createBonusPointRecord(
-    // activityType: BonusPointActivityType,
     ruleId: number,
     userId: string,
     points: number,
@@ -184,7 +183,6 @@ class BonusPointService implements IBonusPointService {
     await this.updateUserRewardCredit(userId, points);
     return await prisma.bonusPoint.create({
       data: {
-        // activityType: activityType,
         ruleId: ruleId,
         userId: userId,
         points: points,
