@@ -267,6 +267,7 @@ class OrderService implements IOrderService {
               productSkuId: i.productSkuId,
               quantity: i.quantity,
               price: i.paymentPrice,
+              type: i.type
             })),
           },
         },
