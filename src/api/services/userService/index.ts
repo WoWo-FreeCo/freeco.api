@@ -377,7 +377,10 @@ class UserService implements IUserService {
     } catch (err) {
       return {
         statusCode: httpStatus.BAD_REQUEST,
-        send: (err as ValidationError).message.replace(' is a required field','為必填欄位') ,
+        send: (err as ValidationError).message.replace(
+          ' is a required field',
+          '為必填欄位',
+        ),
       };
     }
     /** 表單驗證 end */
