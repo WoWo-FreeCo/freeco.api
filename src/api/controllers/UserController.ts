@@ -19,6 +19,9 @@ interface UpdateUserInfoBody {
   nickname?: string;
   cellphone: string;
   telephone?: string;
+  city:string;
+  district:string;
+  zipCode:string;
   addressOne: string;
   addressTwo?: string;
   addressThree?: string;
@@ -29,6 +32,9 @@ const updateUserInfoSchema: ObjectSchema<UpdateUserInfoBody> = object({
   nickname: string().optional(),
   cellphone: string().required(),
   telephone: string().optional(),
+  city: string().required(),
+  district: string().required(),
+  zipCode: string().required(),
   addressOne: string().required(),
   addressTwo: string().optional(),
   addressThree: string().optional(),
@@ -75,6 +81,9 @@ interface ProfileResponse {
   taxIDNumber: string | null;
   cellphone?: string | null;
   telephone: string | null;
+  city: string | null;
+  district: string | null;
+  zipCode: string | null;
   addressOne?: string | null;
   addressTwo: string | null;
   addressThree: string | null;
@@ -247,6 +256,9 @@ class UserController {
           taxIDNumber: user.taxIDNumber,
           cellphone: user.cellphone,
           telephone: user.telephone,
+          city: user.city,
+          district: user.district,
+          zipCode:user.zipCode,
           addressOne: user.addressOne,
           addressTwo: user.addressTwo,
           addressThree: user.addressThree,
@@ -303,7 +315,7 @@ class UserController {
       // Note: Check request body is valid
       updateUserInfoBody = await updateUserInfoSchema.validate(req.body);
     } catch (err) {
-      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message);
+      res.status(httpStatus.BAD_REQUEST).send((err as ValidationError).message.replace(' is a required field','為必填欄位'));
       return;
     }
     try {
@@ -314,7 +326,7 @@ class UserController {
       });
       if (user && user.id !== id) {
         res.status(httpStatus.CONFLICT).send({
-          message: 'Email is already used.',
+          message: '此Email已被使用',
         });
         return;
       }
@@ -323,7 +335,7 @@ class UserController {
       });
       if (user && user.id !== id) {
         res.status(httpStatus.CONFLICT).send({
-          message: 'Cellphone is already used.',
+          message: '此Cellphone已被使用',
         });
         return;
       }
@@ -333,6 +345,9 @@ class UserController {
         nickname: updateUserInfoBody.nickname,
         cellphone: updateUserInfoBody.cellphone,
         telephone: updateUserInfoBody.telephone,
+        city: updateUserInfoBody.city,
+        district: updateUserInfoBody.district,
+        zipCode: updateUserInfoBody.zipCode,
         addressOne: updateUserInfoBody.addressOne,
         addressTwo: updateUserInfoBody.addressTwo,
         addressThree: updateUserInfoBody.addressThree,
@@ -341,7 +356,7 @@ class UserController {
       if (!user) {
         res.status(httpStatus.INTERNAL_SERVER_ERROR).send({
           message:
-            'Could not update user basic info correctly. Please try it later.',
+            '更新資料時發生系統錯誤，請稍後再試',
         });
         return;
       }
@@ -385,6 +400,9 @@ class UserController {
           taxIDNumber: user.taxIDNumber,
           cellphone: user.cellphone,
           telephone: user.telephone,
+          city: user.city,
+          district: user.district,
+          zipCode:user.zipCode,
           addressOne: user.addressOne,
           addressTwo: user.addressTwo,
           addressThree: user.addressThree,

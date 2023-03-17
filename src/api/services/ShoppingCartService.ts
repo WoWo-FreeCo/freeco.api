@@ -130,7 +130,15 @@ class ShoppingCartService implements IShoppingCartService {
         include: {
           cartItems: {
             include: {
-              product: true,
+              product: {
+                  include: {
+                    inventory: {
+                      select: {
+                        quantity: true,
+                      }
+                    }
+                  }
+                },
             },
           },
         },
