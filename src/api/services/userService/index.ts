@@ -225,22 +225,6 @@ class UserService implements IUserService {
     return memberLevel;
   }
 
-  async incrementUserCredit(data: {
-    userId: string;
-    credit: number;
-  }): Promise<void> {
-    await prisma.user.update({
-      where: {
-        id: data.userId,
-      },
-      data: {
-        rewardCredit: {
-          increment: data.credit,
-        },
-      },
-    });
-  }
-
   /**
    * 更新信箱驗證時間
    */

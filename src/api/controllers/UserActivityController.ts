@@ -154,10 +154,6 @@ class UserActivityController {
 
         res.sendStatus(httpStatus.ACCEPTED);
         await BonusPointService.gainFromDailyCheck(id, checkContentInSequence.credit);
-        await UserService.incrementUserCredit({
-          userId: id,
-          credit: checkContentInSequence.credit,
-        });
       } else {
         res.status(httpStatus.BAD_REQUEST).json({
           data: {

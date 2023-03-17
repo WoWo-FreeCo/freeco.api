@@ -109,5 +109,4 @@ export interface IUserService {
   createUser(data: CreateUserInput): Promise<User>;
   updateUser(data: UpdateUserInfoInput): Promise<User | null>;
   getUserMemberLevel(data: { activation: UserActivation }): MemberLevel;
-  incrementUserCredit(data: { credit: number }): Promise<void>;
 }
