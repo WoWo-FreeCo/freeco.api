@@ -164,6 +164,7 @@ export interface ItemPayment {
   name: string;
   quantity: number;
   paymentPrice: number;
+  type: string | null;
 }
 interface IPaymentService {
   payment(data: PaymentInput): Promise<string | null>;
