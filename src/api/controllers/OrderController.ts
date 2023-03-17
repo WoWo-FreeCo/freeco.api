@@ -198,6 +198,7 @@ class OrderController {
           price: item.price,
           quantity: item.quantity,
           coverImg: item.productFromId?.coverImagePath || null,
+          type: item.type
         })),
       };
       res.status(httpStatus.OK).json({ data: responseData });
@@ -266,6 +267,7 @@ class OrderController {
             name: item.name,
             price: item.price,
             quantity: item.quantity,
+            type: item.type
           })),
         });
       });

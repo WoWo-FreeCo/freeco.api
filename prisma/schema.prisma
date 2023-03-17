@@ -261,6 +261,7 @@ model OrderItem {
   productId        Int?
   productSkuId     String?  @db.VarChar(20)
   quantity         Int
+  type         String?  @db.VarChar(50)
   productFromId    Product? @relation("productFromId", fields: [productId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   productFromSkuId Product? @relation("productFromSkuId", fields: [productSkuId], references: [skuId], onDelete: SetNull, onUpdate: Cascade)
 }
