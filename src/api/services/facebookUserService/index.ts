@@ -1,30 +1,22 @@
+import axios from 'axios';
 import prisma from '../../../database/client/prisma/index';
-import { GoogleUser, User } from '@prisma/client';
+import { FacebookUser, User } from '@prisma/client';
+// import config from 'config';
+import { IFacebookUserInfo } from './interface';
 import UserService from '../userService/index';
-import { IGoogleUserInfo } from './interface';
-import { OAuth2Client } from 'google-auth-library';
-import config from 'config';
 import httpStatus from 'http-status';
-
-export class GoogleUserService {
-  public oauthClient: any;
-  constructor() {
-    this.oauthClient = new OAuth2Client(
-      config.get('GOOGLE_CLIENT_ID'),
-      config.get('GOOGLE_SECRET'),
-    );
-  }
+export class FacebookUserService {
   /**
-   * 使用 accountId 取得 google user
+   * 使用 asid 取得 facebook user
    * @param data
    * @returns
    */
-  async getUserByAccountId(data: {
-    accountId: string;
-  }): Promise<(GoogleUser & { user: User | null }) | null> {
-    const user = await prisma.googleUser.findFirst({
+  async getUserByAsid(data: {
+    asid: string;
+  }): Promise<(FacebookUser & { user: User | null }) | null> {
+    const user = await prisma.facebookUser.findFirst({
       where: {
-        accountId: data.accountId,
+        asid: data.asid,
       },
       include: {
         user: true,
@@ -43,14 +35,28 @@ export class GoogleUserService {
    */
   async authenticate(data: {
     accessToken: string;
-  }): Promise<IGoogleUserInfo | any> {
+  }): Promise<{ success: boolean; payload: IFacebookUserInfo } | any> {
     try {
-      const ticket: any = await this.oauthClient.verifyIdToken({
-        idToken: data.accessToken,
-      });
-      return { success: true, payload: ticket.payload };
+      const { data: facebookUser } = await axios.get(
+        `https://graph.facebook.com/me?access_token=${data.accessToken}`,
+        {
+          params: {
+            fields: [
+              'id',
+              'email',
+              'name',
+              'first_name',
+              'middle_name',
+              'last_name',
+              'picture',
+            ].join(','),
+            access_token: encodeURIComponent(data.accessToken),
+          },
+        },
+      );
+      return { success: true, payload: facebookUser };
     } catch (err) {
-      return { success: false, err };
+      return { success: false, err: err };
     }
   }
 
@@ -63,7 +69,7 @@ export class GoogleUserService {
     accessToken: string;
     recommendedAccount?: string;
   }): Promise<{ statusCode: number; send: any } | void> {
-    // 驗證 google 登入 並回傳使用者資料
+    // 驗證 facebook 登入 並回傳使用者資料
     const oauthInfo = await this.authenticate({
       accessToken: data.accessToken,
     });
@@ -71,15 +77,15 @@ export class GoogleUserService {
     if (!oauthInfo.success) {
       throw {
         statusCode: httpStatus.BAD_REQUEST,
-        send: { message: 'Google Authenticate Fail.' },
+        send: { message: 'Facebook Authenticate Fail.' },
       };
     }
-    // 取得 google users 表資料
-    const googleUser =
-      oauthInfo.payload.email !== undefined
-        ? await prisma.googleUser.findFirst({
+    // 取得 facebook 表資料
+    const facebookUser =
+      oauthInfo.payload.id !== undefined
+        ? await prisma.facebookUser.findFirst({
             where: {
-              email: oauthInfo.payload.email,
+              asid: oauthInfo.payload.id,
             },
           })
         : null;
@@ -87,8 +93,8 @@ export class GoogleUserService {
     const user = await UserService.getUserByEmail({
       email: oauthInfo.payload.email,
     });
-    // 判斷有無 googleUser 與 user 資料
-    if (googleUser === null && user === null) {
+    // 判斷有無 facebookUser 與 user 資料
+    if (facebookUser === null && user === null) {
       // 註冊使用者
       try {
         // Note: Create user
@@ -115,48 +121,48 @@ export class GoogleUserService {
         };
       }
       try {
-        // 新增 google user 綁定
+        // 新增 facebook user 綁定
         await this.create({ ...oauthInfo.payload }, user!.id);
       } catch (err) {
         throw {
           statusCode: httpStatus.BAD_REQUEST,
-          send: { message: 'Create Google User Fail.' },
+          send: { message: 'Create Facebook User Fail.' },
         };
       }
     } else if (
-      /* 判斷有 googleUser 和 user 資料 但 userId 為空的情況 */
-      googleUser !== null &&
+      /* 判斷有 facebookUser 和 user 資料 但 userId 為空的情況 */
+      facebookUser !== null &&
       user !== null &&
-      googleUser.userId === null
+      facebookUser.userId === null
     ) {
-      // 更新 google user 綁定
+      // 更新 facebook user 綁定
       try {
         await this.update({ ...oauthInfo.payload }, user.id);
       } catch (err) {
         throw {
           statusCode: httpStatus.BAD_REQUEST,
-          send: { message: 'Update Google User Fail.' },
+          send: { message: 'Update Facebook User Fail.' },
         };
       }
-    } else if (googleUser === null && user !== null) {
+    } else if (facebookUser === null && user !== null) {
       try {
-        // 新增 google user 綁定
+        // 新增 facebook user 綁定
         await this.create({ ...oauthInfo.payload }, user!.id);
       } catch (err) {
         throw {
           statusCode: httpStatus.BAD_REQUEST,
-          send: { message: 'Create Google User Fail.' },
+          send: { message: 'Create Facebook User Fail.' },
         };
       }
     }
-    if (googleUser !== null && user !== null) {
+    if (facebookUser !== null && user !== null) {
       try {
-        // 更新 google user 綁定
+        // 更新 facebook user 綁定
         await this.update({ ...oauthInfo.payload }, user.id);
       } catch (err) {
         throw {
           statusCode: httpStatus.BAD_REQUEST,
-          send: { message: 'Update Google User Fail.' },
+          send: { message: 'Update Facebook User Fail.' },
         };
       }
     }
@@ -165,17 +171,17 @@ export class GoogleUserService {
   /**
    * 新增
    */
-  async create(data: IGoogleUserInfo, userId: string): Promise<void | any> {
+  async create(data: any, userId: string): Promise<void | any> {
     try {
-      await prisma.googleUser.create({
+      await prisma.facebookUser.create({
         data: {
-          accountId: data.sub,
+          asid: data.id,
           userId: userId,
           email: data.email,
-          family_name: data.family_name,
-          given_name: data.given_name,
-          locale: data.locale,
-          picture: data.picture,
+          name: data.name,
+          first_name: data.first_name,
+          last_name: data.last_name,
+          picture: data.picture.data.url,
           last_login_at: new Date(),
         },
       });
@@ -187,18 +193,18 @@ export class GoogleUserService {
   /**
    * 更新
    */
-  async update(data: IGoogleUserInfo, userId: string): Promise<void | any> {
+  async update(data: any, userId: string): Promise<void | any> {
     try {
-      await prisma.googleUser.update({
+      await prisma.facebookUser.update({
         where: { email: data.email },
         data: {
-          accountId: data.sub,
+          asid: data.id,
           userId: userId,
           email: data.email,
-          family_name: data.family_name,
-          given_name: data.given_name,
-          locale: data.locale,
-          picture: data.picture,
+          name: data.name,
+          first_name: data.first_name,
+          last_name: data.last_name,
+          picture: data.picture.data.url,
           last_login_at: new Date(),
         },
       });

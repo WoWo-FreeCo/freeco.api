@@ -3,6 +3,7 @@ import UserController from '../../controllers/UserController';
 import AuthMiddleware from '../../middlewares/AuthMiddleware';
 import UserActivityController from '../../controllers/UserActivityController';
 import GoogleUserController from '../../controllers/googleUserController/index';
+import FacebookUserController from '../../controllers/facebookUserController/index';
 import ShoppingSessionController from '../../controllers/ShoppingSessionController';
 
 const userShoppingSessionRouter: Router = Router();
@@ -76,5 +77,7 @@ userRoute
   // 重置密碼
   .post('/reset-password', UserController.resetPassword)
   // google 登入綁定
-  .post('/google-login', GoogleUserController.login);
+  .post('/google-login', GoogleUserController.login)
+  // facebook 登入綁定
+  .post('/facebook-login', FacebookUserController.login);
 export default userRoute;

@@ -49,4 +49,10 @@ export default {
   MAIL_DOMAIN: process.env.MAIL_DOMAIN,
   // sendinblue key
   SENDINBLUE_KEY: process.env.SENDINBLUE_KEY,
+  // facebook app id
+  FACEBOOK_CLIENT_ID: process.env.FACEBOOK_CLIENT_ID,
+  // facebook oauth secret
+  FACEBOOK_SECRET: process.env.FACEBOOK_SECRET,
+  // facebook api version
+  FACEBOOK_DEFAULT_GRAPH_VERSION: process.env.FACEBOOK_DEFAULT_GRAPH_VERSION,
 };
